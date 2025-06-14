@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { 
-  QuestionMarkCircleIcon,
   ArrowRightIcon,
   ArrowLeftIcon,
   XCircleIcon

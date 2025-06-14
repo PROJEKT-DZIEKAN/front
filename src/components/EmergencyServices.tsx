@@ -22,7 +22,14 @@ export default function EmergencyServices() {
   const [sosActive, setSosActive] = useState(false);
   const [location, setLocation] = useState<GeolocationPosition | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [sosHistory, setSosHistory] = useState<any[]>([]);
+  const [sosHistory, setSosHistory] = useState<Array<{
+    id: string;
+    timestamp: Date;
+    location: { lat: number; lng: number; accuracy: number };
+    status: string;
+    message: string;
+    respondent?: string;
+  }>>([]);
 
   const emergencyContacts: EmergencyContact[] = [
     {

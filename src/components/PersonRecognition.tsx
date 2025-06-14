@@ -1,6 +1,6 @@
 'use client';
 
-import { CameraIcon, UserIcon } from '@heroicons/react/24/outline';
+import { CameraIcon } from '@heroicons/react/24/outline';
 
 export default function PersonRecognition() {
   return (

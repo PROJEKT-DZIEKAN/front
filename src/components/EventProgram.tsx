@@ -38,7 +38,6 @@ interface Event {
 
 export default function EventProgram() {
   const [events, setEvents] = useState<Event[]>([]);
-  const [selectedDay, setSelectedDay] = useState('today');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -169,7 +168,7 @@ export default function EventProgram() {
                          event.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     
     const eventDate = parseISO(event.startTime);
-    const matchesDay = selectedDay === 'today' ? isToday(eventDate) : true;
+    const matchesDay = isToday(eventDate);
     
     return matchesCategory && matchesSearch && matchesDay;
   });

@@ -9,7 +9,6 @@ import {
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
-import { pl } from 'date-fns/locale';
 
 interface Message {
   id: string;

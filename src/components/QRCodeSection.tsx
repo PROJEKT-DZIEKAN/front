@@ -32,7 +32,7 @@ export default function QRCodeSection() {
     completed: false,
     nextStep: 'Odbiór gadżetów i przydziału do grupy'
   });
-  const [userQRCode, setUserQRCode] = useState('USER_QR_12345');
+  const [userQRCode] = useState('USER_QR_12345');
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 

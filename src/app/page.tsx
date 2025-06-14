@@ -10,7 +10,6 @@ import {
   QrCodeIcon,
   MapPinIcon,
   ExclamationTriangleIcon,
-  PhoneIcon,
   AcademicCapIcon,
   ChartBarIcon,
   UserGroupIcon,
