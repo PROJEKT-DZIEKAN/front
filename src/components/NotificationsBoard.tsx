@@ -171,14 +171,14 @@ export default function NotificationsBoard() {
 
       {/* Filter Tabs */}
       <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
-        {[
-          { key: 'all', label: 'Wszystkie', count: notifications.length },
-          { key: 'unread', label: 'Nieprzeczytane', count: unreadCount },
-          { key: 'pinned', label: 'Przypięte', count: notifications.filter(n => n.pinned).length }
-        ].map(tab => (
+        {([
+          { key: 'all' as const, label: 'Wszystkie', count: notifications.length },
+          { key: 'unread' as const, label: 'Nieprzeczytane', count: unreadCount },
+          { key: 'pinned' as const, label: 'Przypięte', count: notifications.filter(n => n.pinned).length }
+        ] as const).map(tab => (
           <button
             key={tab.key}
-            onClick={() => setFilter(tab.key as any)}
+            onClick={() => setFilter(tab.key)}
             className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
               filter === tab.key 
                 ? 'bg-white text-blue-600 shadow-sm' 
