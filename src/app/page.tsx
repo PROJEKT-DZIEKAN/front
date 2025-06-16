@@ -14,7 +14,9 @@ import {
   ChartBarIcon,
   UserGroupIcon,
   CameraIcon,
-  QuestionMarkCircleIcon
+  QuestionMarkCircleIcon,
+  ChevronUpIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 
 // Import components
@@ -49,6 +51,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showTutorial, setShowTutorial] = useState(false);
   const [notifications, setNotifications] = useState(0);
+  const [isNavVisible, setIsNavVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
 
   useEffect(() => {
     const hasVisited = localStorage.getItem('hasVisited');
@@ -58,6 +62,26 @@ export default function Home() {
     }
     setNotifications(3);
   }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        // Scrolling down & past threshold - hide nav
+        setIsNavVisible(false);
+      } else if (currentScrollY < lastScrollY) {
+        // Scrolling up - show nav
+        setIsNavVisible(true);
+      }
+      
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
 
   const renderActiveComponent = () => {
     switch (activeTab) {
@@ -99,30 +123,46 @@ export default function Home() {
           </div>
           <div className="flex items-center space-x-2">
             <button
+              onClick={() => setIsNavVisible(!isNavVisible)}
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              title={isNavVisible ? 'Ukryj nawigację' : 'Pokaż nawigację'}
+            >
+              {isNavVisible ? (
+                <ChevronDownIcon className="h-6 w-6 text-gray-600" />
+              ) : (
+                <ChevronUpIcon className="h-6 w-6 text-gray-600" />
+              )}
+            </button>
+            <button
               onClick={() => setShowTutorial(true)}
               className="p-2 rounded-full hover:bg-gray-100 transition-colors"
             >
               <QuestionMarkCircleIcon className="h-6 w-6 text-gray-600" />
             </button>
-            <div className="relative">
+            <button
+              onClick={() => setActiveTab('notifications')}
+              className="relative p-2 rounded-full hover:bg-gray-100 transition-colors"
+            >
               <BellIcon className="h-6 w-6 text-gray-600" />
               {notifications > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                   {notifications}
                 </span>
               )}
-            </div>
+            </button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto pb-16">
+      <main className="flex-1 overflow-y-auto pb-64">
         {renderActiveComponent()}
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-bottom">
+      <nav className={`fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-bottom transition-transform duration-300 ${
+        isNavVisible ? 'translate-y-0' : 'translate-y-full'
+      }`}>
         <div className="grid grid-cols-4 gap-1 p-2">
           {navigationItems.slice(0, 4).map((item) => {
             const Icon = item.icon;
@@ -189,6 +229,17 @@ export default function Home() {
           })}
         </div>
       </nav>
+
+      {/* Floating Action Button - pokazuje się gdy nawigacja jest ukryta */}
+      {!isNavVisible && (
+        <button
+          onClick={() => setIsNavVisible(true)}
+          className="fixed bottom-4 right-4 bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-all duration-300 z-50"
+          title="Pokaż nawigację"
+        >
+          <ChevronUpIcon className="h-6 w-6" />
+        </button>
+      )}
 
       {/* Tutorial Modal */}
       {showTutorial && (

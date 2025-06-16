@@ -48,8 +48,8 @@ export default function EventProgram() {
         id: '1',
         title: 'Powitanie Studentów',
         description: 'Oficjalne powitanie nowych studentów przez władze uczelni. Prezentacja struktury uczelni, wydziałów i możliwości rozwoju.',
-        startTime: '2024-01-15T14:00:00',
-        endTime: '2024-01-15T15:00:00',
+        startTime: '2024-12-15T14:00:00',
+        endTime: '2024-12-15T15:00:00',
         location: 'Aula Główna',
         locationDetails: 'Budynek A, parter',
         organizer: 'Władze Uczelni',
@@ -76,8 +76,8 @@ export default function EventProgram() {
         id: '2',
         title: 'Prezentacja Wydziałów',
         description: 'Przedstawiciele poszczególnych wydziałów opowiedzą o oferowanych kierunkach, specjalizacjach i możliwościach kariery.',
-        startTime: '2024-01-15T15:30:00',
-        endTime: '2024-01-15T17:00:00',
+        startTime: '2024-12-15T15:30:00',
+        endTime: '2024-12-15T17:00:00',
         location: 'Sala 201',
         locationDetails: 'Budynek B, 2 piętro',
         organizer: 'Dziekani Wydziałów',
@@ -99,8 +99,8 @@ export default function EventProgram() {
         id: '3',
         title: 'Integracja - Gry i Zabawy',
         description: 'Czas na integrację! Gry zespołowe, zabawy i konkursy. Świetna okazja do poznania nowych osób i zdobycia fantastycznych nagród.',
-        startTime: '2024-01-15T17:00:00',
-        endTime: '2024-01-15T19:00:00',
+        startTime: '2024-12-15T17:00:00',
+        endTime: '2024-12-15T19:00:00',
         location: 'Dziedziniec',
         locationDetails: 'Między budynkami A i B',
         organizer: 'Samorząd Studencki',
@@ -114,8 +114,8 @@ export default function EventProgram() {
         id: '4',
         title: 'Warsztat: Podstawy Programowania',
         description: 'Praktyczny warsztat dla początkujących. Nauczysz się podstaw programowania w Pythonie i stworzysz swoją pierwszą aplikację.',
-        startTime: '2024-01-16T10:00:00',
-        endTime: '2024-01-16T12:00:00',
+        startTime: '2024-12-16T10:00:00',
+        endTime: '2024-12-16T12:00:00',
         location: 'Laboratorium 305',
         locationDetails: 'Budynek C, 3 piętro',
         organizer: 'Koło Naukowe Informatyków',
@@ -137,8 +137,8 @@ export default function EventProgram() {
         id: '5',
         title: 'Konkurs Wiedzy',
         description: 'Sprawdź swoją wiedzę w konkursie! Pytania z różnych dziedzin, atrakcyjne nagrody dla zwycięzców.',
-        startTime: '2024-01-16T14:00:00',
-        endTime: '2024-01-16T16:00:00',
+        startTime: '2024-12-16T14:00:00',
+        endTime: '2024-12-16T16:00:00',
         location: 'Aula Główna',
         organizer: 'Organizatorzy Wydarzenia',
         maxParticipants: 200,
@@ -167,10 +167,8 @@ export default function EventProgram() {
                          event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          event.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    const eventDate = parseISO(event.startTime);
-    const matchesDay = isToday(eventDate);
-    
-    return matchesCategory && matchesSearch && matchesDay;
+    // Pokazuj wszystkie wydarzenia (usuń filtrowanie po dniu)
+    return matchesCategory && matchesSearch;
   });
 
   const toggleFavorite = (eventId: string) => {
