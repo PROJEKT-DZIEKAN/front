@@ -11,7 +11,7 @@ import {
   CheckCircleIcon,
   MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
-import { format, parseISO, isToday, isAfter, isBefore } from 'date-fns';
+import { format, parseISO, isAfter, isBefore } from 'date-fns';
 import { pl } from 'date-fns/locale';
 
 interface Event {
