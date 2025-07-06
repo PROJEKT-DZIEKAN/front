@@ -16,8 +16,10 @@ import {
   CameraIcon,
   QuestionMarkCircleIcon,
   ChevronUpIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
+import { useUser } from '@/context/UserContext';
 
 // Import components
 import Dashboard from '@/components/Dashboard';
@@ -32,6 +34,7 @@ import Groups from '@/components/Groups';
 import PersonRecognition from '@/components/PersonRecognition';
 import DigitalCard from '@/components/DigitalCard';
 import Tutorial from '@/components/Tutorial';
+import QRLoginPopup from '@/components/QRLoginPopup';
 
 const navigationItems = [
   { id: 'dashboard', label: 'Główna', icon: HomeIcon },
@@ -53,6 +56,9 @@ export default function Home() {
   const [notifications, setNotifications] = useState(0);
   const [isNavVisible, setIsNavVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [showQRPopup, setShowQRPopup] = useState(false);
+  
+  const { user, isAuthenticated, isLoading, logout } = useUser();
 
   useEffect(() => {
     const hasVisited = localStorage.getItem('hasVisited');
@@ -62,6 +68,13 @@ export default function Home() {
     }
     setNotifications(3);
   }, []);
+
+  // Efekt do pokazywania pop-up QR gdy użytkownik nie jest zalogowany
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      setShowQRPopup(true);
+    }
+  }, [isLoading, isAuthenticated]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -119,9 +132,34 @@ export default function Home() {
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center space-x-2">
             <AcademicCapIcon className="h-8 w-8 text-blue-600" />
-            <h1 className="text-lg font-bold text-gray-900">College App</h1>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900">College App</h1>
+              {isAuthenticated && user && (
+                <p className="text-xs text-gray-500">
+                  Witaj, {user.firstName}!
+                </p>
+              )}
+            </div>
           </div>
           <div className="flex items-center space-x-2">
+            {isAuthenticated && (
+              <button
+                onClick={logout}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                title="Wyloguj się"
+              >
+                <ArrowRightOnRectangleIcon className="h-6 w-6 text-gray-600" />
+              </button>
+            )}
+            {!isAuthenticated && (
+              <button
+                onClick={() => setShowQRPopup(true)}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                title="Zaloguj się"
+              >
+                <QrCodeIcon className="h-6 w-6 text-gray-600" />
+              </button>
+            )}
             <button
               onClick={() => setIsNavVisible(!isNavVisible)}
               className="p-2 rounded-full hover:bg-gray-100 transition-colors"
@@ -240,6 +278,16 @@ export default function Home() {
           <ChevronUpIcon className="h-6 w-6" />
         </button>
       )}
+
+      {/* QR Login Popup */}
+      <QRLoginPopup
+        isOpen={showQRPopup}
+        onClose={() => setShowQRPopup(false)}
+        onLoginSuccess={() => {
+          setShowQRPopup(false);
+          setActiveTab('card'); // Przejdź do wizytówki po zalogowaniu
+        }}
+      />
 
       {/* Tutorial Modal */}
       {showTutorial && (
