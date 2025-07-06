@@ -110,7 +110,8 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
               userId = Number(userInput);
             }
           }
-        } catch {
+        } catch (fetchError) {
+          console.error('Błąd podczas pobierania zawartości QR:', fetchError);
           // Jeśli wszystko zawiedzie, zapytaj użytkownika
           const userInput = prompt('Błąd odczytu QR kodu. Podaj swoje ID użytkownika:');
           if (!userInput || isNaN(Number(userInput))) {
@@ -154,7 +155,7 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
         // Zamknięcie pop-up
         onClose();
       } else {
-        setError('Nie udało się zalogować. Sprawdź kod QR.');
+        setError('Nie udało się zalogować. Sprawdź kod QR i połączenie z internetem.');
       }
       
     } catch (err) {
@@ -276,12 +277,31 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
 
         {/* Przycisk ponownego uruchomienia */}
         {!isScanning && !isLoading && (
-          <button
-            onClick={initQRScanner}
-            className="w-full mt-4 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Uruchom kamerę
-          </button>
+          <div className="space-y-2">
+            <button
+              onClick={initQRScanner}
+              className="w-full mt-4 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Uruchom kamerę
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  const response = await fetch('https://dziekan-backend.onrender.com/api/users');
+                  if (response.ok) {
+                    alert('✅ Połączenie z backendem działa!');
+                  } else {
+                    alert(`❌ Backend odpowiada z błędem: ${response.status}`);
+                  }
+                } catch (error) {
+                  alert(`❌ Nie można połączyć z backendem: ${error}`);
+                }
+              }}
+              className="w-full bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors text-sm"
+            >
+              Testuj połączenie z backendem
+            </button>
+          </div>
         )}
       </div>
     </div>

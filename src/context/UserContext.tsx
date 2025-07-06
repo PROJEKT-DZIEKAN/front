@@ -88,6 +88,36 @@ export function UserProvider({ children }: { children: ReactNode }) {
       
     } catch (error) {
       console.error('Błąd logowania:', error);
+      
+      // Bardziej szczegółowe logowanie błędów
+      if (error instanceof Error) {
+        console.error('Szczegóły błędu:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        });
+      }
+      
+      // Sprawdzanie typu błędu
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as {
+          response?: {
+            status?: number;
+            statusText?: string;
+            data?: unknown;
+          };
+          config?: {
+            url?: string;
+          };
+        };
+        console.error('Błąd HTTP:', {
+          status: axiosError.response?.status,
+          statusText: axiosError.response?.statusText,
+          data: axiosError.response?.data,
+          url: axiosError.config?.url
+        });
+      }
+      
       clearTokens();
       return false;
     } finally {
