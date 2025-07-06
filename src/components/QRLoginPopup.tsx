@@ -110,7 +110,7 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
               userId = Number(userInput);
             }
           }
-        } catch (error) {
+        } catch {
           // Jeśli wszystko zawiedzie, zapytaj użytkownika
           const userInput = prompt('Błąd odczytu QR kodu. Podaj swoje ID użytkownika:');
           if (!userInput || isNaN(Number(userInput))) {
