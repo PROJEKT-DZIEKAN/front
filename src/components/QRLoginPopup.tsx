@@ -65,6 +65,10 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
     try {
       setIsLoading(true);
       
+      // DEBUG: Pokaż co jest w QR kodzie
+      console.log('Zeskanowane dane QR:', qrData);
+      alert(`Zeskanowano: ${qrData}`);
+      
       // Wyciąganie userId z QR kodu
       // Zakładamy, że QR kod zawiera userId bezpośrednio lub w jakimś formacie
       let userId: number;
