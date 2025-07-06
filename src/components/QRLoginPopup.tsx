@@ -67,15 +67,57 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
       
       // DEBUG: Pokaż co jest w QR kodzie
       console.log('Zeskanowane dane QR:', qrData);
-      alert(`Zeskanowano: ${qrData}`);
       
       // Wyciąganie userId z QR kodu
-      // Zakładamy, że QR kod zawiera userId bezpośrednio lub w jakimś formacie
       let userId: number;
       
       // Sprawdzamy czy to jest liczba
       if (!isNaN(Number(qrData))) {
         userId = Number(qrData);
+      } else if (qrData.includes('qr.me-qr.com')) {
+        // QR kod prowadzi do qr.me-qr.com - próbujemy pobrać rzeczywistą zawartość
+        try {
+          // Pobieramy redirect URL
+          const response = await fetch(qrData, { 
+            method: 'GET',
+            redirect: 'follow' 
+          });
+          const finalUrl = response.url;
+          
+          // Sprawdzamy czy w końcowym URL jest userId
+          const userIdMatch = finalUrl.match(/userId[=:](\d+)/i) || 
+                             finalUrl.match(/user[=:](\d+)/i) ||
+                             finalUrl.match(/id[=:](\d+)/i) ||
+                             finalUrl.match(/(\d+)$/);
+          
+          if (userIdMatch) {
+            userId = Number(userIdMatch[1]);
+          } else {
+            // Jeśli nie ma userId w URL, próbujemy pobrać zawartość strony
+            const text = await response.text();
+            const contentMatch = text.match(/userId["\s]*[:=]\s*(\d+)/i) ||
+                                text.match(/user["\s]*[:=]\s*(\d+)/i) ||
+                                text.match(/"(\d+)"/);
+            
+            if (contentMatch) {
+              userId = Number(contentMatch[1]);
+            } else {
+              // Ostatnia szansa - zapytaj użytkownika
+              const userInput = prompt('Nie udało się automatycznie wyciągnąć ID z QR kodu. Podaj swoje ID użytkownika:');
+              if (!userInput || isNaN(Number(userInput))) {
+                throw new Error('Nie podano prawidłowego ID użytkownika');
+              }
+              userId = Number(userInput);
+            }
+          }
+        } catch (error) {
+          // Jeśli wszystko zawiedzie, zapytaj użytkownika
+          const userInput = prompt('Błąd odczytu QR kodu. Podaj swoje ID użytkownika:');
+          if (!userInput || isNaN(Number(userInput))) {
+            throw new Error('Nie podano prawidłowego ID użytkownika');
+          }
+          userId = Number(userInput);
+        }
       } else {
         // Próbujemy wyciągnąć userId z URL lub JSON
         try {

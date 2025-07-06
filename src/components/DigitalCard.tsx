@@ -150,7 +150,7 @@ export default function DigitalCard() {
                 className="w-full h-full object-contain"
               />
             ) : (
-              <QrCodeIcon className="h-16 w-16 text-gray-400" />
+            <QrCodeIcon className="h-16 w-16 text-gray-400" />
             )}
           </div>
           

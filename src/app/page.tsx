@@ -133,7 +133,7 @@ export default function Home() {
           <div className="flex items-center space-x-2">
             <AcademicCapIcon className="h-8 w-8 text-blue-600" />
             <div>
-              <h1 className="text-lg font-bold text-gray-900">College App</h1>
+            <h1 className="text-lg font-bold text-gray-900">College App</h1>
               {isAuthenticated && user && (
                 <p className="text-xs text-gray-500">
                   Witaj, {user.firstName}!
