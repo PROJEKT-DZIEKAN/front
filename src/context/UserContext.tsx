@@ -72,7 +72,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
         refreshToken: response.data.refreshToken
       };
 
-      // Zapisanie tokenów
       saveTokens(tokens);
 
       // Pobranie danych użytkownika
