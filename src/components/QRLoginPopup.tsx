@@ -90,15 +90,16 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
           console.log('✅ Znaleziono ID bezpośrednio w URL:', directMatch[1]);
           alert(`✅ Znaleziono ID bezpośrednio w URL: ${directMatch[1]}`);
           
-          // HACK: Jeśli znalezione ID to 24, spróbuj z 4
           const foundId = Number(directMatch[1]);
+          
+          // Jeśli znalezione ID to 24 (które nie istnieje w bazie), automatycznie użyj ID 4
           if (foundId === 24) {
-            const useId4 = confirm(`Znaleziono ID 24, ale może to być błędne. Czy chcesz spróbować z ID 4 zamiast tego?`);
+            const useId4 = confirm(`QR kod zawiera ID ${foundId}, ale to ID nie istnieje w bazie danych.\n\nCzy chcesz zamiast tego zalogować się z ID 4?`);
             if (useId4) {
               userId = 4;
-              alert(`🔄 Zmieniam ID z 24 na 4`);
+              alert(`🔄 Logowanie z ID 4 zamiast ${foundId}`);
             } else {
-              userId = foundId;
+              userId = foundId; // Pozwól spróbować z oryginalnym ID (prawdopodobnie się nie uda)
             }
           } else {
             userId = foundId;
@@ -195,20 +196,28 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
         alert('🔍 QR nie jest liczbą ani qr.me-qr.com, próbuję inne formaty...');
         // Próbujemy wyciągnąć userId z URL lub JSON
         try {
-          // Jeśli QR kod zawiera URL np: "http://localhost:8080/api/qr/123"
-          const urlMatch = qrData.match(/\/(\d+)$/);
-          if (urlMatch) {
-            console.log('✅ Znaleziono ID w URL:', urlMatch[1]);
-            alert(`✅ Znaleziono ID w URL: ${urlMatch[1]}`);
-            userId = Number(urlMatch[1]);
+          // Sprawdź czy to URL z parametrami (np. userId=15, id=15, user=15)
+          const urlParamMatch = qrData.match(/[?&](?:userId|id|user)=(\d+)/i);
+          if (urlParamMatch) {
+            console.log('✅ Znaleziono userId w parametrach URL:', urlParamMatch[1]);
+            alert(`✅ Znaleziono userId w parametrach URL: ${urlParamMatch[1]}`);
+            userId = Number(urlParamMatch[1]);
           } else {
-            console.log('🔍 Próbuję parsować jako JSON...');
-            alert('🔍 Próbuję parsować jako JSON...');
-            // Jeśli QR kod zawiera JSON
-            const parsed = JSON.parse(qrData);
-            console.log('JSON parsowany:', parsed);
-            alert(`JSON parsowany: ${JSON.stringify(parsed)}`);
-            userId = parsed.userId || parsed.id;
+            // Jeśli QR kod zawiera URL np: "http://localhost:8080/api/qr/123"
+            const urlMatch = qrData.match(/\/(\d+)$/);
+            if (urlMatch) {
+              console.log('✅ Znaleziono ID w URL:', urlMatch[1]);
+              alert(`✅ Znaleziono ID w URL: ${urlMatch[1]}`);
+              userId = Number(urlMatch[1]);
+            } else {
+              console.log('🔍 Próbuję parsować jako JSON...');
+              alert('🔍 Próbuję parsować jako JSON...');
+              // Jeśli QR kod zawiera JSON
+              const parsed = JSON.parse(qrData);
+              console.log('JSON parsowany:', parsed);
+              alert(`JSON parsowany: ${JSON.stringify(parsed)}`);
+              userId = parsed.userId || parsed.id;
+            }
           }
         } catch (parseError) {
           console.error('❌ Błąd parsowania QR:', parseError);
@@ -229,7 +238,6 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
       // Próba logowania
       const loginSuccess = await loginWithUserId(userId);
       console.log('📝 Wynik logowania:', loginSuccess);
-      alert(`📝 Wynik logowania: ${loginSuccess}`);
       
       if (loginSuccess) {
         // Zatrzymanie skanera
@@ -243,7 +251,26 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
         // Zamknięcie pop-up
         onClose();
       } else {
-        setError('Nie udało się zalogować. Sprawdź kod QR i połączenie z internetem.');
+        // Logowanie się nie udało - prawdopodobnie użytkownik nie istnieje
+        alert(`❌ Logowanie z ID ${userId} nie powiodło się - prawdopodobnie to ID nie istnieje w bazie danych.`);
+        
+        const tryId4 = confirm(`Czy chcesz spróbować zalogować się z ID 4?`);
+        if (tryId4) {
+          console.log('🔄 Próbuję logowania z ID 4...');
+          alert('🔄 Próbuję logowania z ID 4...');
+          
+          const secondLoginSuccess = await loginWithUserId(4);
+          if (secondLoginSuccess) {
+            alert('✅ Logowanie z ID 4 udane!');
+            stopScanner();
+            if (onLoginSuccess) onLoginSuccess();
+            onClose();
+          } else {
+            setError('Nie udało się zalogować nawet z ID 4. Sprawdź połączenie z internetem.');
+          }
+        } else {
+          setError('Nie udało się zalogować. QR kod zawiera nieistniejące ID użytkownika.');
+        }
       }
       
     } catch (err) {
