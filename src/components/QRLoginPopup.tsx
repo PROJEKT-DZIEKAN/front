@@ -320,7 +320,7 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
               onClick={async () => {
                 try {
                   setIsLoading(true);
-                  const testUserId = 1; // Testujemy z ID 1
+                  const testUserId = 4; // Testujemy z ID 4
                   console.log('Testuję logowanie z ID:', testUserId);
                   
                   const loginSuccess = await loginWithUserId(testUserId);
@@ -339,7 +339,7 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
               }}
               className="w-full bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-colors text-sm"
             >
-              🧪 Testuj logowanie z ID=1
+              🧪 Testuj logowanie z ID=4
             </button>
           </div>
         )}
