@@ -62,10 +62,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       
+      console.log(`📤 Wysyłam żądanie logowania do: ${API_BASE_URL}/api/auth/login-by-id`);
+      console.log(`📤 Z userId:`, userId);
+      
       // Wysyłanie żądania logowania
       const response = await axios.post(`${API_BASE_URL}/api/auth/login-by-id`, {
         userId: userId
       });
+
+      console.log(`📥 Odpowiedź serwera:`, response.status, response.statusText);
+      console.log(`📥 Response data:`, response.data);
 
       const tokens: AuthTokens = {
         accessToken: response.data.accessToken,
@@ -115,6 +121,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
           data: axiosError.response?.data,
           url: axiosError.config?.url
         });
+        
+        // Alert dla telefonu z szczegółami błędu
+        alert(`❌ Backend Error: ${axiosError.response?.status} - ${JSON.stringify(axiosError.response?.data)}`);
       }
       
       clearTokens();

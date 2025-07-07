@@ -89,7 +89,20 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
         if (directMatch) {
           console.log('✅ Znaleziono ID bezpośrednio w URL:', directMatch[1]);
           alert(`✅ Znaleziono ID bezpośrednio w URL: ${directMatch[1]}`);
-          userId = Number(directMatch[1]);
+          
+          // HACK: Jeśli znalezione ID to 24, spróbuj z 4
+          const foundId = Number(directMatch[1]);
+          if (foundId === 24) {
+            const useId4 = confirm(`Znaleziono ID 24, ale może to być błędne. Czy chcesz spróbować z ID 4 zamiast tego?`);
+            if (useId4) {
+              userId = 4;
+              alert(`🔄 Zmieniam ID z 24 na 4`);
+            } else {
+              userId = foundId;
+            }
+          } else {
+            userId = foundId;
+          }
         } else {
           // QR kod prowadzi do qr.me-qr.com - próbujemy pobrać rzeczywistą zawartość
                       try {
@@ -365,10 +378,14 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
               onClick={async () => {
                 try {
                   const response = await fetch('https://dziekan-backend-ywfy.onrender.com/api/users');
+                  console.log('Test response status:', response.status);
+                  console.log('Test response headers:', response.headers);
+                  const responseText = await response.text();
+                  console.log('Test response body:', responseText);
                   if (response.ok) {
-                    alert('✅ Połączenie z backendem działa!');
+                    alert(`✅ Połączenie z backendem działa! Status: ${response.status}\nResponse: ${responseText.substring(0, 200)}`);
                   } else {
-                    alert(`❌ Backend odpowiada z błędem: ${response.status}`);
+                    alert(`❌ Backend odpowiada z błędem: ${response.status}\nResponse: ${responseText.substring(0, 200)}`);
                   }
                 } catch (error) {
                   alert(`❌ Nie można połączyć z backendem: ${error}`);
