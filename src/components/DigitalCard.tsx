@@ -16,7 +16,7 @@ export default function DigitalCard() {
     
     setIsLoadingQR(true);
     try {
-      const response = await fetch(`https://dziekan-backend.onrender.com/api/qr/${user.id}`);
+      const response = await fetch(`https://dziekan-backend-ywfy.onrender.com/api/qr/${user.id}`);
       if (response.ok) {
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);

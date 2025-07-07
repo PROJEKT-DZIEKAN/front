@@ -28,7 +28,7 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | null>(null);
 
 // Konfiguracja API
-const API_BASE_URL = 'https://dziekan-backend.onrender.com';
+const API_BASE_URL = 'https://dziekan-backend-ywfy.onrender.com';
 
 // Provider komponent
 export function UserProvider({ children }: { children: ReactNode }) {
