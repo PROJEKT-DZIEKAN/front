@@ -78,85 +78,145 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
       // Sprawdzamy czy to jest liczba
       if (!isNaN(Number(qrData))) {
         console.log('✅ QR zawiera samo ID:', qrData);
+        alert(`✅ QR zawiera samo ID: ${qrData}`);
         userId = Number(qrData);
       } else if (qrData.includes('qr.me-qr.com')) {
         console.log('🔗 QR zawiera qr.me-qr.com URL:', qrData);
-        // QR kod prowadzi do qr.me-qr.com - próbujemy pobrać rzeczywistą zawartość
-        try {
-          // Pobieramy redirect URL
-          const response = await fetch(qrData, { 
-            method: 'GET',
-            redirect: 'follow' 
-          });
-          const finalUrl = response.url;
-          
-          // Sprawdzamy czy w końcowym URL jest userId
-          const userIdMatch = finalUrl.match(/userId[=:](\d+)/i) || 
-                             finalUrl.match(/user[=:](\d+)/i) ||
-                             finalUrl.match(/id[=:](\d+)/i) ||
-                             finalUrl.match(/(\d+)$/);
-          
-          if (userIdMatch) {
-            userId = Number(userIdMatch[1]);
-          } else {
-            // Jeśli nie ma userId w URL, próbujemy pobrać zawartość strony
-            const text = await response.text();
-            const contentMatch = text.match(/userId["\s]*[:=]\s*(\d+)/i) ||
-                                text.match(/user["\s]*[:=]\s*(\d+)/i) ||
-                                text.match(/"(\d+)"/);
+        alert(`🔗 QR zawiera qr.me-qr.com URL: ${qrData}`);
+        
+        // Najpierw sprawdźmy czy w samym URL jest jakieś ID
+        const directMatch = qrData.match(/(\d+)/);
+        if (directMatch) {
+          console.log('✅ Znaleziono ID bezpośrednio w URL:', directMatch[1]);
+          alert(`✅ Znaleziono ID bezpośrednio w URL: ${directMatch[1]}`);
+          userId = Number(directMatch[1]);
+        } else {
+          // QR kod prowadzi do qr.me-qr.com - próbujemy pobrać rzeczywistą zawartość
+                      try {
+              console.log('🌐 Próbuję pobrać zawartość z qr.me-qr.com...');
+              alert('🌐 Próbuję pobrać zawartość z qr.me-qr.com...');
+              
+              // Pobieramy redirect URL z większą tolerancją na błędy
+              const response = await fetch(qrData, { 
+                method: 'GET',
+                redirect: 'follow',
+                mode: 'cors'
+              });
+              
+              console.log('📍 Final URL po redirectach:', response.url);
+              alert(`📍 Final URL po redirectach: ${response.url}`);
+              const finalUrl = response.url;
             
-            if (contentMatch) {
-              userId = Number(contentMatch[1]);
-            } else {
-              // Ostatnia szansa - zapytaj użytkownika
-              const userInput = prompt('Nie udało się automatycznie wyciągnąć ID z QR kodu. Podaj swoje ID użytkownika:');
-              if (!userInput || isNaN(Number(userInput))) {
-                throw new Error('Nie podano prawidłowego ID użytkownika');
+            // Sprawdzamy czy w końcowym URL jest userId
+            const userIdMatch = finalUrl.match(/userId[=:](\d+)/i) || 
+                               finalUrl.match(/user[=:](\d+)/i) ||
+                               finalUrl.match(/id[=:](\d+)/i) ||
+                               finalUrl.match(/(\d+)$/);
+            
+                          if (userIdMatch) {
+                console.log('✅ Znaleziono ID w final URL:', userIdMatch[1]);
+                alert(`✅ Znaleziono ID w final URL: ${userIdMatch[1]}`);
+                userId = Number(userIdMatch[1]);
+              } else {
+                console.log('🔍 Nie znaleziono ID w URL, próbuję content...');
+                alert('🔍 Nie znaleziono ID w URL, próbuję content...');
+                // Jeśli nie ma userId w URL, próbujemy pobrać zawartość strony
+                const text = await response.text();
+                console.log('📄 Content preview (first 500 chars):', text.substring(0, 500));
+                alert(`📄 Content preview: ${text.substring(0, 200)}...`);
+              
+              const contentMatch = text.match(/userId["\s]*[:=]\s*(\d+)/i) ||
+                                  text.match(/user["\s]*[:=]\s*(\d+)/i) ||
+                                  text.match(/"(\d+)"/);
+              
+                              if (contentMatch) {
+                  console.log('✅ Znaleziono ID w contencie:', contentMatch[1]);
+                  alert(`✅ Znaleziono ID w contencie: ${contentMatch[1]}`);
+                  userId = Number(contentMatch[1]);
+                } else {
+                  console.log('❌ Nie znaleziono ID w contencie');
+                  alert('❌ Nie znaleziono ID w contencie');
+                  // Ostatnia szansa - najpierw spróbuj ID 4, potem zapytaj użytkownika
+                  console.log('🎯 Próbuję z domyślnym ID 4...');
+                const defaultUserId = 4;
+                const confirmDefault = confirm(`Nie udało się wyciągnąć ID z QR kodu. Czy chcesz spróbować logowania z ID ${defaultUserId}?`);
+                if (confirmDefault) {
+                  userId = defaultUserId;
+                } else {
+                  const userInput = prompt('Podaj swoje ID użytkownika:');
+                  if (!userInput || isNaN(Number(userInput))) {
+                    throw new Error('Nie podano prawidłowego ID użytkownika');
+                  }
+                                     userId = Number(userInput);
+                 }
               }
-              userId = Number(userInput);
             }
+                      } catch (fetchError) {
+              console.error('❌ Błąd podczas pobierania zawartości QR:', fetchError);
+              if (fetchError instanceof Error) {
+                console.error('Typ błędu:', fetchError.name);
+                console.error('Wiadomość:', fetchError.message);
+                alert(`❌ Błąd fetch: ${fetchError.name} - ${fetchError.message}`);
+              } else {
+                alert(`❌ Błąd fetch: ${fetchError}`);
+              }
+              
+              // Jeśli wszystko zawiedzie, oferuj ID 4 jako domyślne
+              console.log('🎯 Fetch się nie udał, próbuję z domyślnym ID 4...');
+              alert('🎯 Fetch się nie udał, próbuję z domyślnym ID 4...');
+              const defaultUserId = 4;
+              const confirmDefault = confirm(`Błąd odczytu QR kodu (prawdopodobnie CORS). Czy chcesz spróbować logowania z ID ${defaultUserId}?`);
+              if (confirmDefault) {
+                userId = defaultUserId;
+              } else {
+                const userInput = prompt('Podaj swoje ID użytkownika:');
+                if (!userInput || isNaN(Number(userInput))) {
+                  throw new Error('Nie podano prawidłowego ID użytkownika');
+                }
+                                 userId = Number(userInput);
+               }
           }
-        } catch (fetchError) {
-          console.error('Błąd podczas pobierania zawartości QR:', fetchError);
-          // Jeśli wszystko zawiedzie, zapytaj użytkownika
-          const userInput = prompt('Błąd odczytu QR kodu. Podaj swoje ID użytkownika:');
-          if (!userInput || isNaN(Number(userInput))) {
-            throw new Error('Nie podano prawidłowego ID użytkownika');
-          }
-          userId = Number(userInput);
         }
       } else {
         console.log('🔍 QR nie jest liczbą ani qr.me-qr.com, próbuję inne formaty...');
+        alert('🔍 QR nie jest liczbą ani qr.me-qr.com, próbuję inne formaty...');
         // Próbujemy wyciągnąć userId z URL lub JSON
         try {
           // Jeśli QR kod zawiera URL np: "http://localhost:8080/api/qr/123"
           const urlMatch = qrData.match(/\/(\d+)$/);
           if (urlMatch) {
             console.log('✅ Znaleziono ID w URL:', urlMatch[1]);
+            alert(`✅ Znaleziono ID w URL: ${urlMatch[1]}`);
             userId = Number(urlMatch[1]);
           } else {
             console.log('🔍 Próbuję parsować jako JSON...');
+            alert('🔍 Próbuję parsować jako JSON...');
             // Jeśli QR kod zawiera JSON
             const parsed = JSON.parse(qrData);
             console.log('JSON parsowany:', parsed);
+            alert(`JSON parsowany: ${JSON.stringify(parsed)}`);
             userId = parsed.userId || parsed.id;
           }
         } catch (parseError) {
           console.error('❌ Błąd parsowania QR:', parseError);
+          alert(`❌ Błąd parsowania QR: ${parseError}`);
           throw new Error('Nieprawidłowy format QR kodu');
         }
       }
 
       if (!userId || userId <= 0) {
         console.error('❌ Nieprawidłowe userId:', userId);
+        alert(`❌ Nieprawidłowe userId: ${userId}`);
         throw new Error('Nie znaleziono prawidłowego ID użytkownika w QR kodzie');
       }
 
       console.log('🚀 Rozpoczynam logowanie z userId:', userId);
+      alert(`🚀 Rozpoczynam logowanie z userId: ${userId}`);
       
       // Próba logowania
       const loginSuccess = await loginWithUserId(userId);
       console.log('📝 Wynik logowania:', loginSuccess);
+      alert(`📝 Wynik logowania: ${loginSuccess}`);
       
       if (loginSuccess) {
         // Zatrzymanie skanera
@@ -175,7 +235,9 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
       
     } catch (err) {
       console.error('Błąd logowania przez QR:', err);
-      setError(err instanceof Error ? err.message : 'Wystąpił błąd podczas logowania');
+      const errorMessage = err instanceof Error ? err.message : 'Wystąpił błąd podczas logowania';
+      alert(`❌ BŁĄD LOGOWANIA: ${errorMessage}`);
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
