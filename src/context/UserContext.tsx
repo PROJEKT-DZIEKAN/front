@@ -3,7 +3,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 
-// Typy danych
 interface User {
   id: number;
   firstName: string;
@@ -27,16 +26,16 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | null>(null);
 
-// Konfiguracja API
+
 const API_BASE_URL = 'https://dziekan-backend-ywfy.onrender.com';
 
-// Provider komponent
+
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Funkcje do zarządzania tokenami
+  
   const saveTokens = (tokens: AuthTokens) => {
     localStorage.setItem('accessToken', tokens.accessToken);
     localStorage.setItem('refreshToken', tokens.refreshToken);
@@ -57,7 +56,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('refreshToken');
   };
 
-  // Funkcja logowania przez userId
+
   const loginWithUserId = async (userId: number): Promise<boolean> => {
     try {
       setIsLoading(true);
@@ -65,7 +64,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       console.log(`📤 Wysyłam żądanie logowania do: ${API_BASE_URL}/api/auth/login-by-id`);
       console.log(`📤 Z userId:`, userId);
       
-      // Wysyłanie żądania logowania
+     
       const response = await axios.post(`${API_BASE_URL}/api/auth/login-by-id`, {
         userId: userId
       });
@@ -80,7 +79,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
       saveTokens(tokens);
 
-      // Pobranie danych użytkownika
+      
       const userDataResponse = await axios.get(`${API_BASE_URL}/api/users/me`, {
         headers: {
           'Authorization': `Bearer ${tokens.accessToken}`
@@ -93,8 +92,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       
     } catch (error) {
       console.error('Błąd logowania:', error);
-      
-      // Bardziej szczegółowe logowanie błędów
+    
       if (error instanceof Error) {
         console.error('Szczegóły błędu:', {
           message: error.message,
@@ -102,8 +100,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           stack: error.stack
         });
       }
-      
-      // Sprawdzanie typu błędu
+     
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as {
           response?: {
@@ -122,7 +119,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           url: axiosError.config?.url
         });
         
-        // Alert dla telefonu z szczegółami błędu
+       
         alert(`❌ Backend Error: ${axiosError.response?.status} - ${JSON.stringify(axiosError.response?.data)}`);
       }
       
@@ -133,7 +130,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Funkcja odświeżania tokenu
+
   const refreshAccessToken = async (): Promise<boolean> => {
     try {
       const tokens = getTokens();
@@ -158,14 +155,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Funkcja wylogowania
+
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
     clearTokens();
   };
 
-  // Funkcja ładowania użytkownika z localStorage przy starcie
+  
   const loadUserFromStorage = async () => {
     try {
       const tokens = getTokens();
@@ -174,7 +171,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Próba pobrania danych użytkownika
+     
       const userDataResponse = await axios.get(`${API_BASE_URL}/api/users/me`, {
         headers: {
           'Authorization': `Bearer ${tokens.accessToken}`
@@ -186,7 +183,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       
     } catch (error) {
       console.error('Błąd ładowania użytkownika:', error);
-      // Próba odświeżenia tokenu
+     
       const refreshSuccess = await refreshAccessToken();
       if (refreshSuccess) {
         await loadUserFromStorage();
@@ -198,10 +195,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Efekt ładowania użytkownika przy starcie
+ 
   useEffect(() => {
     loadUserFromStorage();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); 
 
   const value: UserContextType = {
     user,
@@ -219,7 +216,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Hook do używania kontekstu
 export function useUser() {
   const context = useContext(UserContext);
   if (!context) {
