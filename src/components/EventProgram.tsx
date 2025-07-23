@@ -13,17 +13,36 @@ import {
 } from '@heroicons/react/24/outline';
 import { format, parseISO, isAfter, isBefore } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { useUser } from '@/context/UserContext';
+import axios from 'axios';
 
+// Interface Event zgodny z backendem
 interface Event {
-  id: string;
+  id: number;
   title: string;
   description: string;
-  startTime: string;
-  endTime: string;
+  startTime: string; // ISO string
+  endTime: string;   // ISO string
   location: string;
-  locationDetails?: string;
-  organizer: string;
+  latitude?: number;
+  longitude?: number;
+  qrcodeUrl?: string;
   maxParticipants?: number;
+  organizer?: {
+    id: number;
+    firstName: string;
+    surname: string;
+  };
+  registrations?: Array<{
+    id: number;
+    participant: {
+      id: number;
+      firstName: string;
+      surname: string;
+    };
+    status: string;
+  }>;
+  // Dodatkowe pola frontend
   currentParticipants: number;
   category: 'presentation' | 'workshop' | 'social' | 'competition' | 'other';
   isRegistered: boolean;
@@ -36,23 +55,107 @@ interface Event {
   tags: string[];
 }
 
+const API_BASE_URL = 'https://dziekan-backend-ywfy.onrender.com';
+
 export default function EventProgram() {
+  const { user, isAuthenticated, getAllEvents } = useUser();
   const [events, setEvents] = useState<Event[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Ładowanie eventów z API
   useEffect(() => {
+    loadEventsFromAPI();
+  }, []);
+
+  const loadEventsFromAPI = async () => {
+    setIsLoading(true);
+    try {
+      const apiEvents = await getAllEvents();
+      
+      // Konwersja eventów z API do formatu frontendowego
+      const convertedEvents: Event[] = apiEvents.map((event: any) => ({
+        ...event,
+        // Dodanie frontendowych pól
+        currentParticipants: event.registrations?.length || 0,
+        category: determineCategory(event.title, event.description),
+        isRegistered: event.registrations?.some((reg: any) => 
+          reg.participant.id === user?.id && reg.status === 'REGISTERED'
+        ) || false,
+        isFavorite: false, // TODO: Implement favorites storage
+        tags: generateTags(event.title, event.description),
+        links: generateLinks(event.location)
+      }));
+
+      setEvents(convertedEvents);
+    } catch (error) {
+      console.error('Błąd ładowania eventów:', error);
+      // Fallback do mock data w przypadku błędu
+      loadMockEvents();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Funkcja do określania kategorii na podstawie tytułu i opisu
+  const determineCategory = (title: string, description: string): Event['category'] => {
+    const titleLower = title.toLowerCase();
+    const descLower = description.toLowerCase();
+
+    if (titleLower.includes('prezentacja') || titleLower.includes('powitanie')) {
+      return 'presentation';
+    } else if (titleLower.includes('warsztat') || descLower.includes('warsztat')) {
+      return 'workshop';
+    } else if (titleLower.includes('integracja') || titleLower.includes('gry') || titleLower.includes('zabawy')) {
+      return 'social';
+    } else if (titleLower.includes('konkurs') || descLower.includes('konkurs')) {
+      return 'competition';
+    }
+    return 'other';
+  };
+
+  // Funkcja do generowania tagów
+  const generateTags = (title: string, description: string): string[] => {
+    const tags: string[] = [];
+    const text = `${title} ${description}`.toLowerCase();
+
+    if (text.includes('student')) tags.push('Studenci');
+    if (text.includes('programowanie')) tags.push('Programowanie');
+    if (text.includes('wiedza')) tags.push('Wiedza');
+    if (text.includes('nagrody')) tags.push('Nagrody');
+    if (text.includes('integracja')) tags.push('Integracja');
+    if (text.includes('warsztat')) tags.push('Warsztat');
+    if (text.includes('prezentacja')) tags.push('Prezentacja');
+
+    return tags.length > 0 ? tags : ['Event'];
+  };
+
+  // Funkcja do generowania linków
+  const generateLinks = (location: string) => {
+    const links = [];
+    
+    // Dodaj link do Google Maps
+    links.push({
+      title: 'Lokalizacja na mapie',
+      url: `https://maps.google.com/search/${encodeURIComponent(location)}`,
+      type: 'location' as const
+    });
+
+    return links;
+  };
+
+  // Fallback mock data
+  const loadMockEvents = () => {
     const mockEvents: Event[] = [
       {
-        id: '1',
+        id: 1,
         title: 'Powitanie Studentów',
         description: 'Oficjalne powitanie nowych studentów przez władze uczelni. Prezentacja struktury uczelni, wydziałów i możliwości rozwoju.',
         startTime: '2024-12-15T14:00:00',
         endTime: '2024-12-15T15:00:00',
         location: 'Aula Główna',
-        locationDetails: 'Budynek A, parter',
-        organizer: 'Władze Uczelni',
         maxParticipants: 500,
         currentParticipants: 347,
         category: 'presentation',
@@ -63,95 +166,61 @@ export default function EventProgram() {
             title: 'Lokalizacja na mapie',
             url: 'https://maps.google.com',
             type: 'location'
-          },
-          {
-            title: 'Program powitania',
-            url: 'https://example.com/program.pdf',
-            type: 'materials'
           }
         ],
         tags: ['Oficjalne', 'Powitanie', 'Informacje']
-      },
-      {
-        id: '2',
-        title: 'Prezentacja Wydziałów',
-        description: 'Przedstawiciele poszczególnych wydziałów opowiedzą o oferowanych kierunkach, specjalizacjach i możliwościach kariery.',
-        startTime: '2024-12-15T15:30:00',
-        endTime: '2024-12-15T17:00:00',
-        location: 'Sala 201',
-        locationDetails: 'Budynek B, 2 piętro',
-        organizer: 'Dziekani Wydziałów',
-        maxParticipants: 100,
-        currentParticipants: 89,
-        category: 'presentation',
-        isRegistered: false,
-        isFavorite: false,
-        links: [
-          {
-            title: 'Rejestracja na prezentację',
-            url: 'https://example.com/register',
-            type: 'registration'
-          }
-        ],
-        tags: ['Wydziały', 'Kariera', 'Edukacja']
-      },
-      {
-        id: '3',
-        title: 'Integracja - Gry i Zabawy',
-        description: 'Czas na integrację! Gry zespołowe, zabawy i konkursy. Świetna okazja do poznania nowych osób i zdobycia fantastycznych nagród.',
-        startTime: '2024-12-15T17:00:00',
-        endTime: '2024-12-15T19:00:00',
-        location: 'Dziedziniec',
-        locationDetails: 'Między budynkami A i B',
-        organizer: 'Samorząd Studencki',
-        currentParticipants: 156,
-        category: 'social',
-        isRegistered: true,
-        isFavorite: true,
-        tags: ['Integracja', 'Gry', 'Zabawy', 'Nagrody']
-      },
-      {
-        id: '4',
-        title: 'Warsztat: Podstawy Programowania',
-        description: 'Praktyczny warsztat dla początkujących. Nauczysz się podstaw programowania w Pythonie i stworzysz swoją pierwszą aplikację.',
-        startTime: '2024-12-16T10:00:00',
-        endTime: '2024-12-16T12:00:00',
-        location: 'Laboratorium 305',
-        locationDetails: 'Budynek C, 3 piętro',
-        organizer: 'Koło Naukowe Informatyków',
-        maxParticipants: 30,
-        currentParticipants: 28,
-        category: 'workshop',
-        isRegistered: false,
-        isFavorite: false,
-        links: [
-          {
-            title: 'Materiały do warsztatów',
-            url: 'https://github.com/example/workshop',
-            type: 'materials'
-          }
-        ],
-        tags: ['Programowanie', 'Python', 'Warsztat', 'Początkujący']
-      },
-      {
-        id: '5',
-        title: 'Konkurs Wiedzy',
-        description: 'Sprawdź swoją wiedzę w konkursie! Pytania z różnych dziedzin, atrakcyjne nagrody dla zwycięzców.',
-        startTime: '2024-12-16T14:00:00',
-        endTime: '2024-12-16T16:00:00',
-        location: 'Aula Główna',
-        organizer: 'Organizatorzy Wydarzenia',
-        maxParticipants: 200,
-        currentParticipants: 134,
-        category: 'competition',
-        isRegistered: true,
-        isFavorite: false,
-        tags: ['Konkurs', 'Wiedza', 'Nagrody']
       }
     ];
-
     setEvents(mockEvents);
-  }, []);
+  };
+
+  // Funkcja rejestracji na event
+  const registerForEvent = async (eventId: number, register: boolean) => {
+    if (!isAuthenticated || !user) {
+      alert('Musisz być zalogowany aby się zarejestrować');
+      return;
+    }
+
+    try {
+      const headers = {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+        'Content-Type': 'application/json'
+      };
+
+      if (register) {
+        // Rejestracja
+        await axios.post(`${API_BASE_URL}/api/event-registrations/register`, {
+          event: { id: eventId },
+          participant: { id: user.id }
+        }, { headers });
+      } else {
+        // Wypisanie się - trzeba znaleźć ID rejestracji
+        const registrations = await axios.get(
+          `${API_BASE_URL}/api/event-registrations/registrations-by-participant/${user.id}`,
+          { headers }
+        );
+        
+        const registration = registrations.data.find((reg: any) => 
+          reg.event.id === eventId && reg.status === 'REGISTERED'
+        );
+
+        if (registration) {
+          await axios.delete(
+            `${API_BASE_URL}/api/event-registrations/delete?id=${registration.id}`,
+            { headers }
+          );
+        }
+      }
+
+      // Odśwież listę eventów
+      await loadEventsFromAPI();
+      
+      alert(register ? 'Zarejestrowano pomyślnie!' : 'Wypisano z eventu!');
+    } catch (error) {
+      console.error('Błąd rejestracji:', error);
+      alert('Wystąpił błąd podczas rejestracji');
+    }
+  };
 
   const categories = [
     { id: 'all', name: 'Wszystkie', count: events.length },
@@ -167,11 +236,10 @@ export default function EventProgram() {
                          event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          event.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    // Pokazuj wszystkie wydarzenia (usuń filtrowanie po dniu)
     return matchesCategory && matchesSearch;
   });
 
-  const toggleFavorite = (eventId: string) => {
+  const toggleFavorite = (eventId: number) => {
     setEvents(prev => 
       prev.map(event => 
         event.id === eventId 
@@ -181,20 +249,11 @@ export default function EventProgram() {
     );
   };
 
-  const toggleRegistration = (eventId: string) => {
-    setEvents(prev => 
-      prev.map(event => 
-        event.id === eventId 
-          ? { 
-              ...event, 
-              isRegistered: !event.isRegistered,
-              currentParticipants: event.isRegistered 
-                ? event.currentParticipants - 1 
-                : event.currentParticipants + 1
-            }
-          : event
-      )
-    );
+  const toggleRegistration = (eventId: number) => {
+    const event = events.find(e => e.id === eventId);
+    if (!event) return;
+
+    registerForEvent(eventId, !event.isRegistered);
   };
 
   const getEventStatus = (event: Event) => {
@@ -238,7 +297,26 @@ export default function EventProgram() {
         <CalendarIcon className="h-12 w-12 text-blue-500 mx-auto mb-4" />
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Program Wydarzenia</h1>
         <p className="text-gray-600">Wszystkie wydarzenia, warsztaty i prezentacje</p>
+        {isLoading && (
+          <div className="flex items-center justify-center mt-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+            <span className="text-sm text-blue-600">Ładowanie...</span>
+          </div>
+        )}
       </div>
+
+      {/* Refresh Button - tylko dla zalogowanych */}
+      {isAuthenticated && (
+        <div className="text-center">
+          <button
+            onClick={loadEventsFromAPI}
+            disabled={isLoading}
+            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors disabled:bg-gray-300 text-sm"
+          >
+            {isLoading ? 'Odświeżanie...' : 'Odśwież wydarzenia'}
+          </button>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative">
@@ -271,7 +349,11 @@ export default function EventProgram() {
 
       {/* Events List */}
       <div className="space-y-4">
-        {filteredEvents.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500">Ładowanie wydarzeń...</p>
+          </div>
+        ) : filteredEvents.length === 0 ? (
           <div className="text-center py-8">
             <CalendarIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">Brak wydarzeń pasujących do kryteriów</p>
@@ -301,7 +383,7 @@ export default function EventProgram() {
                         )}
                       </div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">{event.title}</h3>
-                      <p className="text-sm text-gray-600 mb-2">{event.organizer}</p>
+                      <p className="text-sm text-gray-600 mb-2">{event.organizer?.firstName} {event.organizer?.surname}</p>
                     </div>
                     <button
                       onClick={() => toggleFavorite(event.id)}
@@ -327,8 +409,10 @@ export default function EventProgram() {
                     <div className="flex items-center text-sm text-gray-600">
                       <MapPinIcon className="h-4 w-4 mr-2" />
                       <span>{event.location}</span>
-                      {event.locationDetails && (
-                        <span className="ml-1 text-gray-500">({event.locationDetails})</span>
+                      {event.latitude && event.longitude && (
+                        <span className="ml-1 text-gray-500">
+                          (lat: {event.latitude.toFixed(4)}, lon: {event.longitude.toFixed(4)})
+                        </span>
                       )}
                     </div>
                     {event.maxParticipants && (
@@ -421,7 +505,7 @@ export default function EventProgram() {
                   </div>
                   <div className="flex items-center text-sm">
                     <UserGroupIcon className="h-4 w-4 mr-2 text-gray-500" />
-                    <span>{selectedEvent.organizer}</span>
+                    <span>{selectedEvent.organizer?.firstName} {selectedEvent.organizer?.surname}</span>
                   </div>
                 </div>
 

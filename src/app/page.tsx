@@ -17,7 +17,8 @@ import {
   QuestionMarkCircleIcon,
   ChevronUpIcon,
   ChevronDownIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  CogIcon
 } from '@heroicons/react/24/outline';
 import { useUser } from '@/context/UserContext';
 
@@ -35,20 +36,9 @@ import PersonRecognition from '@/components/PersonRecognition';
 import DigitalCard from '@/components/DigitalCard';
 import Tutorial from '@/components/Tutorial';
 import QRLoginPopup from '@/components/QRLoginPopup';
+import AdminPanel from '@/components/AdminPanel';
 
-const navigationItems = [
-  { id: 'dashboard', label: 'Główna', icon: HomeIcon },
-  { id: 'program', label: 'Program', icon: CalendarIcon },
-  { id: 'notifications', label: 'Tablica', icon: BellIcon },
-  { id: 'chat', label: 'Chat', icon: ChatBubbleLeftRightIcon },
-  { id: 'qr', label: 'QR Code', icon: QrCodeIcon },
-  { id: 'location', label: 'Lokalizacja', icon: MapPinIcon },
-  { id: 'emergency', label: 'Alarmowe', icon: ExclamationTriangleIcon },
-  { id: 'surveys', label: 'Ankiety', icon: ChartBarIcon },
-  { id: 'groups', label: 'Grupy', icon: UserGroupIcon },
-  { id: 'recognition', label: 'Rozpoznaj', icon: CameraIcon },
-  { id: 'card', label: 'Wizytówka', icon: UserIcon },
-];
+
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -58,7 +48,7 @@ export default function Home() {
   const [lastScrollY, setLastScrollY] = useState(0);
   const [showQRPopup, setShowQRPopup] = useState(false);
   
-  const { user, isAuthenticated, isLoading, logout } = useUser();
+  const { user, isAuthenticated, isLoading, isAdmin, logout } = useUser();
 
   useEffect(() => {
     const hasVisited = localStorage.getItem('hasVisited');
@@ -96,6 +86,30 @@ export default function Home() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
+  // Dynamiczna nawigacja - dodaję admin tab tylko dla adminów
+  const getNavigationItems = () => {
+    const baseItems = [
+      { id: 'dashboard', label: 'Główna', icon: HomeIcon },
+      { id: 'program', label: 'Program', icon: CalendarIcon },
+      { id: 'notifications', label: 'Tablica', icon: BellIcon },
+      { id: 'chat', label: 'Chat', icon: ChatBubbleLeftRightIcon },
+      { id: 'qr', label: 'QR Code', icon: QrCodeIcon },
+      { id: 'location', label: 'Lokalizacja', icon: MapPinIcon },
+      { id: 'emergency', label: 'Alarmowe', icon: ExclamationTriangleIcon },
+      { id: 'surveys', label: 'Ankiety', icon: ChartBarIcon },
+      { id: 'groups', label: 'Grupy', icon: UserGroupIcon },
+      { id: 'recognition', label: 'Rozpoznaj', icon: CameraIcon },
+      { id: 'card', label: 'Wizytówka', icon: UserIcon },
+    ];
+
+    // Dodaję admin tab tylko dla adminów
+    if (isAdmin) {
+      baseItems.push({ id: 'admin', label: 'Admin', icon: CogIcon });
+    }
+
+    return baseItems;
+  };
+
   const renderActiveComponent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -120,6 +134,8 @@ export default function Home() {
         return <PersonRecognition />;
       case 'card':
         return <DigitalCard />;
+      case 'admin':
+        return <AdminPanel />;
       default:
         return <Dashboard onNavigate={setActiveTab} />;
     }
@@ -201,71 +217,82 @@ export default function Home() {
       <nav className={`fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-bottom transition-transform duration-300 ${
         isNavVisible ? 'translate-y-0' : 'translate-y-full'
       }`}>
-        <div className="grid grid-cols-4 gap-1 p-2">
-          {navigationItems.slice(0, 4).map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex flex-col items-center py-2 px-1 rounded-lg transition-colors btn-press ${
-                  isActive 
-                    ? 'bg-blue-50 text-blue-600' 
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <Icon className="h-5 w-5 mb-1" />
-                <span className="text-xs font-medium">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-        
-        <div className="grid grid-cols-4 gap-1 p-2 pt-0 border-t border-gray-100">
-          {navigationItems.slice(4, 8).map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex flex-col items-center py-2 px-1 rounded-lg transition-colors btn-press ${
-                  isActive 
-                    ? 'bg-blue-50 text-blue-600' 
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <Icon className="h-5 w-5 mb-1" />
-                <span className="text-xs font-medium">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {(() => {
+          const navItems = getNavigationItems();
+          return (
+            <>
+              <div className="grid grid-cols-4 gap-1 p-2">
+                {navItems.slice(0, 4).map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={`flex flex-col items-center py-2 px-1 rounded-lg transition-colors btn-press ${
+                        isActive 
+                          ? 'bg-blue-50 text-blue-600' 
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5 mb-1" />
+                      <span className="text-xs font-medium">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              
+              <div className="grid grid-cols-4 gap-1 p-2 pt-0 border-t border-gray-100">
+                {navItems.slice(4, 8).map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={`flex flex-col items-center py-2 px-1 rounded-lg transition-colors btn-press ${
+                        isActive 
+                          ? 'bg-blue-50 text-blue-600' 
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5 mb-1" />
+                      <span className="text-xs font-medium">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-        <div className="grid grid-cols-3 gap-1 p-2 pt-0 border-t border-gray-100">
-          {navigationItems.slice(8).map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex flex-col items-center py-2 px-1 rounded-lg transition-colors btn-press ${
-                  isActive 
-                    ? 'bg-blue-50 text-blue-600' 
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <Icon className="h-5 w-5 mb-1" />
-                <span className="text-xs font-medium">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
+              <div className={`grid gap-1 p-2 pt-0 border-t border-gray-100 ${isAdmin ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                {navItems.slice(8).map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  const isAdminTab = item.id === 'admin';
+                  
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={`flex flex-col items-center py-2 px-1 rounded-lg transition-colors btn-press ${
+                        isActive 
+                          ? (isAdminTab ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600')
+                          : (isAdminTab ? 'text-purple-600 hover:bg-purple-50' : 'text-gray-600 hover:bg-gray-50')
+                      } ${isAdminTab ? 'relative border border-purple-200' : ''}`}
+                    >
+                      <Icon className={`h-5 w-5 mb-1 ${isAdminTab ? 'text-purple-600' : ''}`} />
+                      <span className={`text-xs font-medium ${isAdminTab ? 'text-purple-700' : ''}`}>{item.label}</span>
+                      {isAdminTab && (
+                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-purple-500 rounded-full"></div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          );
+        })()}
       </nav>
 
       {/* Floating Action Button - pokazuje się gdy nawigacja jest ukryta */}

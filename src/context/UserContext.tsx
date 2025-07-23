@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
 import axios from 'axios';
 
 interface User {
@@ -8,6 +8,7 @@ interface User {
   firstName: string;
   surname: string;
   registrationStatus?: string;
+  roles?: string[]; // Dodaję role z JWT tokenu
 }
 
 interface AuthTokens {
@@ -15,13 +16,34 @@ interface AuthTokens {
   refreshToken: string;
 }
 
+// Dodaję interface dla Event zgodnie z backendem
+interface Event {
+  id?: number;
+  title: string;
+  description: string;
+  startTime: string; // ISO string format
+  endTime: string;   // ISO string format
+  location: string;
+  latitude?: number;
+  longitude?: number;
+  qrcodeUrl?: string;
+  maxParticipants?: number;
+  organizer?: User;
+}
+
 interface UserContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isAdmin: boolean; // Sprawdzanie na podstawie ról z JWT
   loginWithUserId: (userId: number) => Promise<boolean>;
   logout: () => void;
   refreshAccessToken: () => Promise<boolean>;
+  // Dodaję funkcje do zarządzania eventami
+  createEvent: (event: Event) => Promise<Event | null>;
+  updateEvent: (id: number, event: Event) => Promise<Event | null>;
+  deleteEvent: (id: number) => Promise<boolean>;
+  getAllEvents: () => Promise<Event[]>;
 }
 
 const UserContext = createContext<UserContextType | null>(null);
@@ -29,11 +51,48 @@ const UserContext = createContext<UserContextType | null>(null);
 
 const API_BASE_URL = 'https://dziekan-backend-ywfy.onrender.com';
 
+// Funkcja do dekodowania JWT tokenu (bez weryfikacji - tylko odczyt)
+const decodeJWT = (token: string) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error('Błąd dekodowania JWT:', error);
+    return null;
+  }
+};
+
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Sprawdzanie uprawnień admina na podstawie ról z JWT tokenu
+  const isAdmin = useMemo(() => {
+    if (!isAuthenticated || !user) return false;
+    
+    // Sprawdź czy user ma rolę ADMIN
+    return user.roles?.includes('ADMIN') || false;
+  }, [isAuthenticated, user]);
+
+  // Funkcja do pobrania tokenów z nagłówkami autoryzacji
+  const getAuthHeaders = () => {
+    const tokens = getTokens();
+    if (!tokens) return null;
+    
+    return {
+      'Authorization': `Bearer ${tokens.accessToken}`,
+      'Content-Type': 'application/json'
+    };
+  };
 
   
   const saveTokens = (tokens: AuthTokens) => {
@@ -54,6 +113,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const clearTokens = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+  };
+
+  // Funkcja do wyciągania danych użytkownika z JWT tokenu
+  const extractUserFromToken = (accessToken: string): User | null => {
+    const tokenData = decodeJWT(accessToken);
+    if (!tokenData) return null;
+
+    return {
+      id: parseInt(tokenData.sub),
+      firstName: tokenData.firstName,
+      surname: tokenData.surname,
+      registrationStatus: tokenData.status,
+      roles: tokenData.role || [] // Role z tokenu!
+    };
   };
 
 
@@ -79,14 +152,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
       saveTokens(tokens);
 
-      
-      const userDataResponse = await axios.get(`${API_BASE_URL}/api/users/me`, {
-        headers: {
-          'Authorization': `Bearer ${tokens.accessToken}`
-        }
-      });
+      // Wyciągnij dane usera z JWT tokenu zamiast robić dodatkowe zapytanie
+      const userData = extractUserFromToken(tokens.accessToken);
+      if (!userData) {
+        throw new Error('Nie można wyciągnąć danych z tokenu');
+      }
 
-      setUser(userDataResponse.data);
+      console.log('👤 Dane użytkownika z tokenu:', userData);
+      console.log('🔐 Role użytkownika:', userData.roles);
+
+      setUser(userData);
       setIsAuthenticated(true);
       return true;
       
@@ -172,13 +247,23 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
 
      
-      const userDataResponse = await axios.get(`${API_BASE_URL}/api/users/me`, {
-        headers: {
-          'Authorization': `Bearer ${tokens.accessToken}`
+      // Wyciągnij dane usera z JWT tokenu zamiast robić dodatkowe zapytanie
+      const userData = extractUserFromToken(tokens.accessToken);
+      if (!userData) {
+        // Jeśli token jest nieprawidłowy, spróbuj odświeżyć
+        const refreshSuccess = await refreshAccessToken();
+        if (refreshSuccess) {
+          await loadUserFromStorage();
+        } else {
+          clearTokens();
         }
-      });
+        return;
+      }
 
-      setUser(userDataResponse.data);
+      console.log('🔄 Załadowano użytkownika z tokenu:', userData);
+      console.log('🔐 Role użytkownika:', userData.roles);
+
+      setUser(userData);
       setIsAuthenticated(true);
       
     } catch (error) {
@@ -200,13 +285,94 @@ export function UserProvider({ children }: { children: ReactNode }) {
     loadUserFromStorage();
   }, []); 
 
+  // Funkcje do zarządzania eventami
+  const createEvent = async (event: Event): Promise<Event | null> => {
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) {
+        console.error('Brak tokenów autoryzacji');
+        return null;
+      }
+
+      const response = await axios.post(`${API_BASE_URL}/api/events/create`, {
+        title: event.title,
+        description: event.description,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        location: event.location,
+        latitude: event.latitude,
+        longitude: event.longitude,
+        maxParticipants: event.maxParticipants,
+        organizer: user // Ustawiam aktualnego usera jako organizatora
+      }, { headers });
+
+      return response.data;
+    } catch (error) {
+      console.error('Błąd tworzenia eventu:', error);
+      return null;
+    }
+  };
+
+  const updateEvent = async (id: number, event: Event): Promise<Event | null> => {
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return null;
+
+      const response = await axios.put(`${API_BASE_URL}/api/events/update/${id}`, {
+        title: event.title,
+        description: event.description,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        location: event.location,
+        latitude: event.latitude,
+        longitude: event.longitude,
+        maxParticipants: event.maxParticipants,
+        organizer: user
+      }, { headers });
+
+      return response.data;
+    } catch (error) {
+      console.error('Błąd aktualizacji eventu:', error);
+      return null;
+    }
+  };
+
+  const deleteEvent = async (id: number): Promise<boolean> => {
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return false;
+
+      await axios.delete(`${API_BASE_URL}/api/events/delete/${id}`, { headers });
+      return true;
+    } catch (error) {
+      console.error('Błąd usuwania eventu:', error);
+      return false;
+    }
+  };
+
+  const getAllEvents = async (): Promise<Event[]> => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/events`);
+      return response.data;
+    } catch (error) {
+      console.error('Błąd pobierania eventów:', error);
+      return [];
+    }
+  };
+
   const value: UserContextType = {
     user,
     isAuthenticated,
     isLoading,
+    isAdmin,
     loginWithUserId,
     logout,
-    refreshAccessToken
+    refreshAccessToken,
+    // Dodaję funkcje do zarządzania eventami
+    createEvent,
+    updateEvent,
+    deleteEvent,
+    getAllEvents
   };
 
   return (
