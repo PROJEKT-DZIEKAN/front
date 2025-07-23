@@ -77,7 +77,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   // Sprawdzanie uprawnień admina - na podstawie ról z JWT tokenu
   const isAdmin = useMemo(() => {
-    const hasAdminRole = isAuthenticated && user?.roles?.includes('ADMIN');
+    const hasAdminRole = isAuthenticated && user?.roles?.includes('admin');
     
     // Debug popup dla telefonu - tylko gdy user jest zalogowany
     if (isAuthenticated && user) {
