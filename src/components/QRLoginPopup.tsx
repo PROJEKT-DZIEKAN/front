@@ -37,7 +37,7 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
       // Tworzenie nowego skanera
       qrScannerRef.current = new QrScanner(
         videoRef.current,
-        (result) => handleQRScan(result.data),
+        (result) => handleResult(result.data),
         {
           onDecodeError: (error) => {
             // Nie logujemy błędów dekodowania - to normalne podczas skanowania
@@ -59,226 +59,103 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
     }
   };
 
-  // Funkcja obsługi zeskanowanego QR kodu
-  const handleQRScan = async (qrData: string) => {
+  const handleResult = async (result: string) => {
+    if (isLoading) return;
+    
+    console.log('QR Data:', result);
+    setIsLoading(true);
+
     try {
-      setIsLoading(true);
-      
-      // DEBUG: Pokaż co jest w QR kodzie
-      console.log('=== QR KOD DEBUG ===');
-      console.log('Zeskanowane dane QR:', qrData);
-      console.log('Typ danych:', typeof qrData);
-      console.log('Długość:', qrData.length);
-      alert(`QR Data: ${qrData}`); // Pokazuje też użytkownikowi
-      
-      // Wyciąganie userId z QR kodu
-      let userId: number;
-      
+      const userId = await parseQRCode(result);
+      if (userId) {
+        const success = await loginWithUserId(userId);
+        
+        if (success) {
+          stopScanner();
+          onClose();
+          if (onLoginSuccess) onLoginSuccess();
+        } else {
+          setError('Błąd logowania. Spróbuj ponownie.');
+        }
+      } else {
+        setError('Nieprawidłowy kod QR');
+      }
+    } catch (error) {
+      console.error('Błąd przetwarzania QR:', error);
+      setError('Błąd skanowania kodu QR');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const parseQRCode = async (qrData: string): Promise<number | null> => {
+    try {
       // Sprawdzamy czy to jest liczba
       if (!isNaN(Number(qrData))) {
-        console.log('✅ QR zawiera samo ID:', qrData);
-        alert(`✅ QR zawiera samo ID: ${qrData}`);
-        userId = Number(qrData);
-      } else if (qrData.includes('qr.me-qr.com')) {
-        console.log('🔗 QR zawiera qr.me-qr.com URL:', qrData);
-        alert(`🔗 QR zawiera qr.me-qr.com URL: ${qrData}`);
-        
+        return Number(qrData);
+      } 
+      
+      // Sprawdź czy to URL qr.me-qr.com
+      if (qrData.includes('qr.me-qr.com')) {
         // Najpierw sprawdźmy czy w samym URL jest jakieś ID
         const directMatch = qrData.match(/(\d+)/);
         if (directMatch) {
-          console.log('✅ Znaleziono ID bezpośrednio w URL:', directMatch[1]);
-          alert(`✅ Znaleziono ID bezpośrednio w URL: ${directMatch[1]}`);
-          
           const foundId = Number(directMatch[1]);
           
           // Jeśli znalezione ID to 24 (które nie istnieje w bazie), automatycznie użyj ID 4
           if (foundId === 24) {
             const useId4 = confirm(`QR kod zawiera ID ${foundId}, ale to ID nie istnieje w bazie danych.\n\nCzy chcesz zamiast tego zalogować się z ID 4?`);
             if (useId4) {
-              userId = 4;
-              alert(`🔄 Logowanie z ID 4 zamiast ${foundId}`);
+              return 4;
             } else {
-              userId = foundId; // Pozwól spróbować z oryginalnym ID (prawdopodobnie się nie uda)
+              return foundId; // Pozwól spróbować z oryginalnym ID (prawdopodobnie się nie uda)
             }
           } else {
-            userId = foundId;
+            return foundId;
           }
         } else {
-          // QR kod prowadzi do qr.me-qr.com - próbujemy pobrać rzeczywistą zawartość
-                      try {
-              console.log('🌐 Próbuję pobrać zawartość z qr.me-qr.com...');
-              alert('🌐 Próbuję pobrać zawartość z qr.me-qr.com...');
-              
-              // Pobieramy redirect URL z większą tolerancją na błędy
-              const response = await fetch(qrData, { 
-                method: 'GET',
-                redirect: 'follow',
-                mode: 'cors'
-              });
-              
-              console.log('📍 Final URL po redirectach:', response.url);
-              alert(`📍 Final URL po redirectach: ${response.url}`);
-              const finalUrl = response.url;
+          // Jeśli brak bezpośredniego ID, próbuj fetch
+          try {
+            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(qrData)}`);
+            const data = await response.json();
+            const idMatch = data.contents.match(/ID[:\s]*(\d+)/i);
             
-            // Sprawdzamy czy w końcowym URL jest userId
-            const userIdMatch = finalUrl.match(/userId[=:](\d+)/i) || 
-                               finalUrl.match(/user[=:](\d+)/i) ||
-                               finalUrl.match(/id[=:](\d+)/i) ||
-                               finalUrl.match(/(\d+)$/);
-            
-                          if (userIdMatch) {
-                console.log('✅ Znaleziono ID w final URL:', userIdMatch[1]);
-                alert(`✅ Znaleziono ID w final URL: ${userIdMatch[1]}`);
-                userId = Number(userIdMatch[1]);
-              } else {
-                console.log('🔍 Nie znaleziono ID w URL, próbuję content...');
-                alert('🔍 Nie znaleziono ID w URL, próbuję content...');
-                // Jeśli nie ma userId w URL, próbujemy pobrać zawartość strony
-                const text = await response.text();
-                console.log('📄 Content preview (first 500 chars):', text.substring(0, 500));
-                alert(`📄 Content preview: ${text.substring(0, 200)}...`);
-              
-              const contentMatch = text.match(/userId["\s]*[:=]\s*(\d+)/i) ||
-                                  text.match(/user["\s]*[:=]\s*(\d+)/i) ||
-                                  text.match(/"(\d+)"/);
-              
-                              if (contentMatch) {
-                  console.log('✅ Znaleziono ID w contencie:', contentMatch[1]);
-                  alert(`✅ Znaleziono ID w contencie: ${contentMatch[1]}`);
-                  userId = Number(contentMatch[1]);
-                } else {
-                  console.log('❌ Nie znaleziono ID w contencie');
-                  alert('❌ Nie znaleziono ID w contencie');
-                  // Ostatnia szansa - najpierw spróbuj ID 4, potem zapytaj użytkownika
-                  console.log('🎯 Próbuję z domyślnym ID 4...');
-                const defaultUserId = 4;
-                const confirmDefault = confirm(`Nie udało się wyciągnąć ID z QR kodu. Czy chcesz spróbować logowania z ID ${defaultUserId}?`);
-                if (confirmDefault) {
-                  userId = defaultUserId;
-                } else {
-                  const userInput = prompt('Podaj swoje ID użytkownika:');
-                  if (!userInput || isNaN(Number(userInput))) {
-                    throw new Error('Nie podano prawidłowego ID użytkownika');
-                  }
-                                     userId = Number(userInput);
-                 }
-              }
+            if (idMatch) {
+              return parseInt(idMatch[1]);
             }
-                      } catch (fetchError) {
-              console.error('❌ Błąd podczas pobierania zawartości QR:', fetchError);
-              if (fetchError instanceof Error) {
-                console.error('Typ błędu:', fetchError.name);
-                console.error('Wiadomość:', fetchError.message);
-                alert(`❌ Błąd fetch: ${fetchError.name} - ${fetchError.message}`);
-              } else {
-                alert(`❌ Błąd fetch: ${fetchError}`);
-              }
-              
-              // Jeśli wszystko zawiedzie, oferuj ID 4 jako domyślne
-              console.log('🎯 Fetch się nie udał, próbuję z domyślnym ID 4...');
-              alert('🎯 Fetch się nie udał, próbuję z domyślnym ID 4...');
-              const defaultUserId = 4;
-              const confirmDefault = confirm(`Błąd odczytu QR kodu (prawdopodobnie CORS). Czy chcesz spróbować logowania z ID ${defaultUserId}?`);
-              if (confirmDefault) {
-                userId = defaultUserId;
-              } else {
-                const userInput = prompt('Podaj swoje ID użytkownika:');
-                if (!userInput || isNaN(Number(userInput))) {
-                  throw new Error('Nie podano prawidłowego ID użytkownika');
-                }
-                                 userId = Number(userInput);
-               }
+          } catch (fetchError) {
+            console.error('Błąd podczas pobierania zawartości QR:', fetchError);
+            // Fallback do ID 4
+            const confirmDefault = confirm(`Błąd odczytu QR kodu. Czy chcesz spróbować logowania z ID 4?`);
+            if (confirmDefault) {
+              return 4;
+            }
           }
         }
       } else {
-        console.log('🔍 QR nie jest liczbą ani qr.me-qr.com, próbuję inne formaty...');
-        alert('🔍 QR nie jest liczbą ani qr.me-qr.com, próbuję inne formaty...');
         // Próbujemy wyciągnąć userId z URL lub JSON
+        const urlParamMatch = qrData.match(/[?&](?:userId|id|user)=(\d+)/i);
+        if (urlParamMatch) {
+          return Number(urlParamMatch[1]);
+        } 
+        
+        const urlMatch = qrData.match(/\/(\d+)$/);
+        if (urlMatch) {
+          return Number(urlMatch[1]);
+        }
+        
         try {
-          // Sprawdź czy to URL z parametrami (np. userId=15, id=15, user=15)
-          const urlParamMatch = qrData.match(/[?&](?:userId|id|user)=(\d+)/i);
-          if (urlParamMatch) {
-            console.log('✅ Znaleziono userId w parametrach URL:', urlParamMatch[1]);
-            alert(`✅ Znaleziono userId w parametrach URL: ${urlParamMatch[1]}`);
-            userId = Number(urlParamMatch[1]);
-          } else {
-            // Jeśli QR kod zawiera URL np: "http://localhost:8080/api/qr/123"
-            const urlMatch = qrData.match(/\/(\d+)$/);
-            if (urlMatch) {
-              console.log('✅ Znaleziono ID w URL:', urlMatch[1]);
-              alert(`✅ Znaleziono ID w URL: ${urlMatch[1]}`);
-              userId = Number(urlMatch[1]);
-            } else {
-              console.log('🔍 Próbuję parsować jako JSON...');
-              alert('🔍 Próbuję parsować jako JSON...');
-              // Jeśli QR kod zawiera JSON
-              const parsed = JSON.parse(qrData);
-              console.log('JSON parsowany:', parsed);
-              alert(`JSON parsowany: ${JSON.stringify(parsed)}`);
-              userId = parsed.userId || parsed.id;
-            }
-          }
+          const parsed = JSON.parse(qrData);
+          return parsed.userId || parsed.id;
         } catch (parseError) {
-          console.error('❌ Błąd parsowania QR:', parseError);
-          alert(`❌ Błąd parsowania QR: ${parseError}`);
-          throw new Error('Nieprawidłowy format QR kodu');
-        }
-      }
-
-      if (!userId || userId <= 0) {
-        console.error('❌ Nieprawidłowe userId:', userId);
-        alert(`❌ Nieprawidłowe userId: ${userId}`);
-        throw new Error('Nie znaleziono prawidłowego ID użytkownika w QR kodzie');
-      }
-
-      console.log('🚀 Rozpoczynam logowanie z userId:', userId);
-      alert(`🚀 Rozpoczynam logowanie z userId: ${userId}`);
-      
-      // Próba logowania
-      const loginSuccess = await loginWithUserId(userId);
-      console.log('📝 Wynik logowania:', loginSuccess);
-      
-      if (loginSuccess) {
-        // Zatrzymanie skanera
-        stopScanner();
-        
-        // Wywołanie callback'a sukcesu
-        if (onLoginSuccess) {
-          onLoginSuccess();
-        }
-        
-        // Zamknięcie pop-up
-        onClose();
-      } else {
-        // Logowanie się nie udało - prawdopodobnie użytkownik nie istnieje
-        alert(`❌ Logowanie z ID ${userId} nie powiodło się - prawdopodobnie to ID nie istnieje w bazie danych.`);
-        
-        const tryId4 = confirm(`Czy chcesz spróbować zalogować się z ID 4?`);
-        if (tryId4) {
-          console.log('🔄 Próbuję logowania z ID 4...');
-          alert('🔄 Próbuję logowania z ID 4...');
-          
-          const secondLoginSuccess = await loginWithUserId(4);
-          if (secondLoginSuccess) {
-            alert('✅ Logowanie z ID 4 udane!');
-            stopScanner();
-            if (onLoginSuccess) onLoginSuccess();
-            onClose();
-          } else {
-            setError('Nie udało się zalogować nawet z ID 4. Sprawdź połączenie z internetem.');
-          }
-        } else {
-          setError('Nie udało się zalogować. QR kod zawiera nieistniejące ID użytkownika.');
+          console.error('Błąd parsowania QR:', parseError);
         }
       }
       
-    } catch (err) {
-      console.error('Błąd logowania przez QR:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Wystąpił błąd podczas logowania';
-      alert(`❌ BŁĄD LOGOWANIA: ${errorMessage}`);
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
+      return null;
+    } catch (error) {
+      console.error('Błąd parsowania QR:', error);
+      return null;
     }
   };
 
@@ -393,60 +270,12 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
 
         {/* Przycisk ponownego uruchomienia */}
         {!isScanning && !isLoading && (
-          <div className="space-y-2">
-            <button
-              onClick={initQRScanner}
-              className="w-full mt-4 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Uruchom kamerę
-            </button>
-            <button
-              onClick={async () => {
-                try {
-                  const response = await fetch('https://dziekan-backend-ywfy.onrender.com/api/users');
-                  console.log('Test response status:', response.status);
-                  console.log('Test response headers:', response.headers);
-                  const responseText = await response.text();
-                  console.log('Test response body:', responseText);
-                  if (response.ok) {
-                    alert(`✅ Połączenie z backendem działa! Status: ${response.status}\nResponse: ${responseText.substring(0, 200)}`);
-                  } else {
-                    alert(`❌ Backend odpowiada z błędem: ${response.status}\nResponse: ${responseText.substring(0, 200)}`);
-                  }
-                } catch (error) {
-                  alert(`❌ Nie można połączyć z backendem: ${error}`);
-                }
-              }}
-              className="w-full bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors text-sm"
-            >
-              Testuj połączenie z backendem
-            </button>
-            <button
-              onClick={async () => {
-                try {
-                  setIsLoading(true);
-                  const testUserId = 4; // Testujemy z ID 4
-                  console.log('Testuję logowanie z ID:', testUserId);
-                  
-                  const loginSuccess = await loginWithUserId(testUserId);
-                  if (loginSuccess) {
-                    alert('✅ Testowe logowanie udane!');
-                    onClose();
-                    if (onLoginSuccess) onLoginSuccess();
-                  } else {
-                    alert('❌ Testowe logowanie nieudane!');
-                  }
-                } catch (error) {
-                  alert(`❌ Błąd testowego logowania: ${error}`);
-                } finally {
-                  setIsLoading(false);
-                }
-              }}
-              className="w-full bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-colors text-sm"
-            >
-              🧪 Testuj logowanie z ID=4
-            </button>
-          </div>
+          <button
+            onClick={initQRScanner}
+            className="w-full mt-4 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Uruchom kamerę
+          </button>
         )}
       </div>
     </div>

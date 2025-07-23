@@ -75,12 +75,21 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Sprawdzanie uprawnień admina na podstawie ról z JWT tokenu
+  // Sprawdzanie uprawnień admina - na podstawie ról z JWT tokenu
   const isAdmin = useMemo(() => {
-    if (!isAuthenticated || !user) return false;
+    const hasAdminRole = isAuthenticated && user?.roles?.includes('ADMIN');
     
-    // Sprawdź czy user ma rolę ADMIN
-    return user.roles?.includes('ADMIN') || false;
+    // Debug popup dla telefonu - tylko gdy user jest zalogowany
+    if (isAuthenticated && user) {
+      alert(`🔍 Admin Check DEBUG:
+User ID: ${user.id}
+Authenticated: ${isAuthenticated}
+User Roles: ${JSON.stringify(user.roles)}
+Has ADMIN role: ${hasAdminRole}
+isAdmin result: ${hasAdminRole || false}`);
+    }
+    
+    return hasAdminRole || false;
   }, [isAuthenticated, user]);
 
   // Funkcja do pobrania tokenów z nagłówkami autoryzacji
@@ -120,12 +129,21 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const tokenData = decodeJWT(accessToken);
     if (!tokenData) return null;
 
+    const roles = Array.isArray(tokenData.role) ? tokenData.role : (tokenData.role ? [tokenData.role] : []);
+    
+    // Debug popup dla telefonu
+    alert(`🔓 DEBUG Token data:
+ID: ${tokenData.sub}
+Name: ${tokenData.firstName} ${tokenData.surname}
+Roles: ${JSON.stringify(roles)}
+Type of roles: ${typeof tokenData.role}`);
+
     return {
       id: parseInt(tokenData.sub),
       firstName: tokenData.firstName,
       surname: tokenData.surname,
       registrationStatus: tokenData.status,
-      roles: tokenData.role || [] // Role z tokenu!
+      roles: roles // Role z tokenu - poprawione!
     };
   };
 
@@ -134,16 +152,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       
-      console.log(`📤 Wysyłam żądanie logowania do: ${API_BASE_URL}/api/auth/login-by-id`);
-      console.log(`📤 Z userId:`, userId);
-      
-     
       const response = await axios.post(`${API_BASE_URL}/api/auth/login-by-id`, {
         userId: userId
       });
-
-      console.log(`📥 Odpowiedź serwera:`, response.status, response.statusText);
-      console.log(`📥 Response data:`, response.data);
 
       const tokens: AuthTokens = {
         accessToken: response.data.accessToken,
@@ -157,9 +168,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (!userData) {
         throw new Error('Nie można wyciągnąć danych z tokenu');
       }
-
-      console.log('👤 Dane użytkownika z tokenu:', userData);
-      console.log('🔐 Role użytkownika:', userData.roles);
 
       setUser(userData);
       setIsAuthenticated(true);
@@ -259,9 +267,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
         }
         return;
       }
-
-      console.log('🔄 Załadowano użytkownika z tokenu:', userData);
-      console.log('🔐 Role użytkownika:', userData.roles);
 
       setUser(userData);
       setIsAuthenticated(true);
