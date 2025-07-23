@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   CogIcon,
   PlusIcon,
@@ -52,6 +52,24 @@ export default function AdminPanel() {
     maxParticipants: undefined
   });
 
+  // Funkcja do ładowania eventów
+  const loadEvents = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const eventsData = await getAllEvents();
+      setEvents(eventsData);
+    } catch (error) {
+      console.error('Błąd ładowania eventów:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getAllEvents]);
+
+  // Załadowanie eventów przy inicjalizacji
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
+
   // Sprawdzenie uprawnień admina
   if (!isAdmin) {
     return (
@@ -69,7 +87,7 @@ export default function AdminPanel() {
                 <strong>Role:</strong> {user.roles?.join(', ') || 'Brak ról'}
               </p>
               <p className="text-xs text-yellow-600 mt-2">
-                Potrzebujesz roli "ADMIN" aby uzyskać dostęp do tego panelu
+                Potrzebujesz roli &quot;ADMIN&quot; aby uzyskać dostęp do tego panelu
               </p>
             </div>
           )}
@@ -77,23 +95,6 @@ export default function AdminPanel() {
       </div>
     );
   }
-
-  // Załadowanie eventów przy inicjalizacji
-  useEffect(() => {
-    loadEvents();
-  }, []);
-
-  const loadEvents = async () => {
-    setIsLoading(true);
-    try {
-      const eventsData = await getAllEvents();
-      setEvents(eventsData);
-    } catch (error) {
-      console.error('Błąd ładowania eventów:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;

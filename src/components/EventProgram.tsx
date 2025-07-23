@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   CalendarIcon,
   ClockIcon,
@@ -16,43 +16,56 @@ import { pl } from 'date-fns/locale';
 import { useUser } from '@/context/UserContext';
 import axios from 'axios';
 
-// Interface Event zgodny z backendem
-interface Event {
+interface User {
+  id: number;
+  firstName: string;
+  surname: string;
+}
+
+// Interface dla odpowiedzi z API
+interface ApiEventRegistration {
+  id: number;
+  participant: User;
+  event: {
+    id: number;
+    title: string;
+  };
+  status: string;
+  registrationDate: string;
+}
+
+interface ApiEvent {
   id: number;
   title: string;
   description: string;
-  startTime: string; // ISO string
-  endTime: string;   // ISO string
+  startTime: string;
+  endTime: string;
   location: string;
   latitude?: number;
   longitude?: number;
   qrcodeUrl?: string;
   maxParticipants?: number;
-  organizer?: {
-    id: number;
-    firstName: string;
-    surname: string;
-  };
-  registrations?: Array<{
-    id: number;
-    participant: {
-      id: number;
-      firstName: string;
-      surname: string;
-    };
-    status: string;
-  }>;
-  // Dodatkowe pola frontend
+  organizer?: User;
+  registrations?: ApiEventRegistration[];
+}
+
+interface Event {
+  id: number;
+  title: string;
+  description: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  latitude?: number;
+  longitude?: number;
+  organizer?: User;
   currentParticipants: number;
-  category: 'presentation' | 'workshop' | 'social' | 'competition' | 'other';
+  maxParticipants?: number;
+  category: string;
   isRegistered: boolean;
   isFavorite: boolean;
-  links?: Array<{
-    title: string;
-    url: string;
-    type: 'location' | 'materials' | 'registration' | 'other';
-  }>;
   tags: string[];
+  links: Array<{ text: string; url: string }>;
 }
 
 const API_BASE_URL = 'https://dziekan-backend-ywfy.onrender.com';
@@ -65,23 +78,18 @@ export default function EventProgram() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Ładowanie eventów z API
-  useEffect(() => {
-    loadEventsFromAPI();
-  }, []);
-
-  const loadEventsFromAPI = async () => {
+  const loadEventsFromAPI = useCallback(async () => {
     setIsLoading(true);
     try {
       const apiEvents = await getAllEvents();
       
       // Konwersja eventów z API do formatu frontendowego
-      const convertedEvents: Event[] = apiEvents.map((event: any) => ({
+      const convertedEvents: Event[] = (apiEvents as ApiEvent[]).map((event: ApiEvent) => ({
         ...event,
         // Dodanie frontendowych pól
         currentParticipants: event.registrations?.length || 0,
         category: determineCategory(event.title, event.description),
-        isRegistered: event.registrations?.some((reg: any) => 
+        isRegistered: event.registrations?.some((reg: ApiEventRegistration) => 
           reg.participant.id === user?.id && reg.status === 'REGISTERED'
         ) || false,
         isFavorite: false, // TODO: Implement favorites storage
@@ -90,14 +98,20 @@ export default function EventProgram() {
       }));
 
       setEvents(convertedEvents);
+      console.log('📅 Załadowano eventy z API:', convertedEvents.length);
     } catch (error) {
-      console.error('Błąd ładowania eventów:', error);
-      // Fallback do mock data w przypadku błędu
-      loadMockEvents();
+      console.error('❌ Błąd ładowania eventów:', error);
+      console.log('🔄 Fallback do mock data');
+      loadMockEvents(); // Fallback do mock data
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [getAllEvents, user?.id]);
+
+  // Ładowanie eventów z API
+  useEffect(() => {
+    loadEventsFromAPI();
+  }, [loadEventsFromAPI]);
 
   // Funkcja do określania kategorii na podstawie tytułu i opisu
   const determineCategory = (title: string, description: string): Event['category'] => {
@@ -138,9 +152,8 @@ export default function EventProgram() {
     
     // Dodaj link do Google Maps
     links.push({
-      title: 'Lokalizacja na mapie',
-      url: `https://maps.google.com/search/${encodeURIComponent(location)}`,
-      type: 'location' as const
+      text: 'Lokalizacja na mapie',
+      url: `https://maps.google.com/search/${encodeURIComponent(location)}`
     });
 
     return links;
@@ -163,9 +176,8 @@ export default function EventProgram() {
         isFavorite: true,
         links: [
           {
-            title: 'Lokalizacja na mapie',
-            url: 'https://maps.google.com',
-            type: 'location'
+            text: 'Lokalizacja na mapie',
+            url: 'https://maps.google.com'
           }
         ],
         tags: ['Oficjalne', 'Powitanie', 'Informacje']
@@ -200,7 +212,7 @@ export default function EventProgram() {
           { headers }
         );
         
-        const registration = registrations.data.find((reg: any) => 
+        const registration = registrations.data.find((reg: ApiEventRegistration) => 
           reg.event.id === eventId && reg.status === 'REGISTERED'
         );
 
@@ -522,7 +534,7 @@ export default function EventProgram() {
                           className="flex items-center text-blue-600 text-sm hover:underline"
                         >
                           <LinkIcon className="h-4 w-4 mr-2" />
-                          {link.title}
+                          {link.text}
                         </a>
                       ))}
                     </div>
