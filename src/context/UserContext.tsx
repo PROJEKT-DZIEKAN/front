@@ -136,14 +136,14 @@ isAdmin result: ${hasAdminRole || false}`);
 ID: ${tokenData.sub}
 Name: ${tokenData.firstName} ${tokenData.surname}
 Roles: ${JSON.stringify(roles)}
-Type of roles: ${typeof tokenData.role}`);
+Raw role data: ${JSON.stringify(tokenData.role)}`);
 
     return {
       id: parseInt(tokenData.sub),
       firstName: tokenData.firstName,
       surname: tokenData.surname,
       registrationStatus: tokenData.status,
-      roles: roles // Role z tokenu - poprawione!
+      roles: roles
     };
   };
 
