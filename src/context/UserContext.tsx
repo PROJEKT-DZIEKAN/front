@@ -295,14 +295,9 @@ Raw role data: ${JSON.stringify(tokenData.role)}`);
     try {
       const headers = getAuthHeaders();
       if (!headers) {
-        alert('🔒 Debug: Brak tokenów autoryzacji');
+        console.error('Brak tokenów autoryzacji');
         return null;
       }
-
-      alert(`📝 Debug: Próba utworzenia eventu:
-Tytuł: ${event.title}
-Czas: ${event.startTime} - ${event.endTime}
-Lokalizacja: ${event.location}`);
 
       const response = await axios.post(`${API_BASE_URL}/api/events/create`, {
         title: event.title,
@@ -316,13 +311,8 @@ Lokalizacja: ${event.location}`);
         organizer: user // Ustawiam aktualnego usera jako organizatora
       }, { headers });
 
-      alert('✅ Event utworzony pomyślnie!');
       return response.data;
-    } catch (error: any) {
-      alert(`❌ Błąd tworzenia eventu:
-${error.message}
-${error.response ? `Status: ${error.response.status}
-Dane: ${JSON.stringify(error.response.data)}` : 'Brak szczegółów odpowiedzi'}`);
+    } catch (error) {
       console.error('Błąd tworzenia eventu:', error);
       return null;
     }
