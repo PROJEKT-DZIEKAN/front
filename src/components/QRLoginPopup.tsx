@@ -19,7 +19,6 @@ export default function QRLoginPopup({ isOpen, onClose, onLoginSuccess }: QRLogi
   const [isLoading, setIsLoading] = useState(false);
   const { loginWithUserId } = useUser();
 
-  // Funkcja inicjalizacji skanera QR
   const initQRScanner = async () => {
     if (!videoRef.current) return;
     
