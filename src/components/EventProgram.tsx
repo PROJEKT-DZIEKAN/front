@@ -18,19 +18,7 @@ import { pl } from 'date-fns/locale';
 import { useUser } from '@/context/UserContext';
 import axios from 'axios';
 
-// Dodaję funkcję debounce
-const debounce = (func: Function, wait: number) => {
-  let timeout: NodeJS.Timeout;
-  return function executedFunction(...args: any[]) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-};
-
+// Usuwam debounce - nie jest potrzebny, bo nie będziemy automatycznie odświeżać
 interface User {
   id: number;
   firstName: string;
@@ -128,23 +116,10 @@ export default function EventProgram() {
     }
   }, [getAllEvents, user?.id]);
 
-  // Używam debounce dla loadEventsFromAPI
-  const debouncedLoadEvents = useCallback(
-    debounce(() => loadEventsFromAPI(), 5000), // 5 sekund debounce
-    [loadEventsFromAPI]
-  );
-
-  // Ładowanie eventów z API
+  // Ładowanie eventów z API - TYLKO przy pierwszym załadowaniu, bez automatycznego odświeżania
   useEffect(() => {
-    debouncedLoadEvents();
-    
-    // Ustawiam interwał na odświeżanie co 30 sekund
-    const interval = setInterval(debouncedLoadEvents, 30000);
-    
-    return () => {
-      clearInterval(interval);
-    };
-  }, [debouncedLoadEvents]);
+    loadEventsFromAPI();
+  }, []); // Puste dependencies - tylko przy mount
 
   // Funkcja do określania kategorii na podstawie tytułu i opisu
   const determineCategory = (title: string, description: string): Event['category'] => {
@@ -257,7 +232,7 @@ export default function EventProgram() {
         }
       }
 
-      // Odśwież listę eventów
+      // Odśwież listę eventów TYLKO po akcji użytkownika
       await loadEventsFromAPI();
       
       alert(register ? 'Zarejestrowano pomyślnie!' : 'Wypisano z eventu!');

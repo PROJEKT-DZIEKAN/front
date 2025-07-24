@@ -369,31 +369,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   const getAllEvents = async (): Promise<Event[]> => {
-    const maxRetries = 3;
-    let retryCount = 0;
-
-    while (retryCount < maxRetries) {
-      try {
-        const headers = getAuthHeaders();
-        if (!headers) {
-          throw new Error('Brak tokenów autoryzacji');
-        }
-
-        const response = await axios.get(`${API_BASE_URL}/api/events`, {
-          headers: headers
-        });
-        return response.data;
-      } catch (error) {
-        retryCount++;
-        if (retryCount === maxRetries) {
-          console.error('Błąd pobierania eventów po ' + maxRetries + ' próbach:', error);
-          return [];
-        }
-        // Czekaj przed kolejną próbą (exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
-      }
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/events`);
+      return response.data;
+    } catch (error) {
+      console.error('Błąd pobierania eventów:', error);
+      // Nie próbujemy ponownie automatycznie - pozwalamy userowi zdecydować
+      throw error; // Rzucamy błąd, żeby EventProgram mógł go obsłużyć
     }
-    return [];
   };
 
   const value: UserContextType = {
