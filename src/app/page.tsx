@@ -102,15 +102,6 @@ export default function Home() {
       { id: 'card', label: 'Wizytówka', icon: UserIcon },
     ];
 
-    // Debug popup dla telefonu
-    if (isAuthenticated && user) {
-      alert(`🎯 Navigation DEBUG:
-User ID: ${user.id}
-User roles: ${JSON.stringify(user.roles)}
-isAdmin: ${isAdmin}
-Will add admin tab: ${isAdmin ? 'YES' : 'NO'}`);
-    }
-
     // Dodaję admin tab tylko dla adminów
     if (isAdmin) {
       baseItems.push({ id: 'admin', label: 'Admin', icon: CogIcon });
