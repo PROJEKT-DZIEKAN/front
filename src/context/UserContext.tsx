@@ -344,7 +344,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
       console.log('📥 Odpowiedź z serwera:', response.data);
       
       // Informuj inne komponenty o nowym evencie
+      console.log('🔔 Emitowanie eventu przez EventBus...');
       eventBus.emit();
+      console.log('✅ EventBus emit wykonany');
       
       return response.data;
     } catch (error) {

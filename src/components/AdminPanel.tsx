@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { 
   CogIcon,
   PlusIcon,
@@ -67,10 +67,10 @@ export default function AdminPanel() {
     }
   }, [getAllEvents]);
 
-  // USUWAM automatyczne ładowanie przy mount
-  // useEffect(() => {
-  //   loadEvents();
-  // }, [loadEvents]);
+  // DODAJĘ automatyczne ładowanie przy mount dla admina
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
 
   const [error, setError] = useState<string | null>(null);
 

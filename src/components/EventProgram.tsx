@@ -83,7 +83,10 @@ export default function EventProgram() {
   const [error, setError] = useState<string | null>(null);
 
   const loadEventsFromAPI = useCallback(async () => {
-    if (isLoading) return; // Zapobiegaj wielokrotnym wywołaniom podczas ładowania
+    if (isLoading) {
+      console.log('⚠️ Ładowanie już w toku, pomijam');
+      return; // Zapobiegaj wielokrotnym wywołaniom podczas ładowania
+    }
     
     try {
       setIsLoading(true);
@@ -126,10 +129,10 @@ export default function EventProgram() {
     return unsubscribe;
   }, [loadEventsFromAPI]);
 
-  // USUWAM automatyczne ładowanie - tylko ręczne przez przycisk
-  // useEffect(() => {
-  //   loadEventsFromAPI();
-  // }, []);
+  // Ładowanie przy mount - tylko jeden raz
+  useEffect(() => {
+    loadEventsFromAPI();
+  }, [loadEventsFromAPI]); // Dodaję loadEventsFromAPI jako zależność
 
   // Funkcja do określania kategorii na podstawie tytułu i opisu
   const determineCategory = (title: string, description: string): Event['category'] => {
