@@ -299,7 +299,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      const response = await axios.post(`${API_BASE_URL}/api/events/create`, {
+      const eventData = {
         title: event.title,
         description: event.description,
         startTime: event.startTime,
@@ -309,8 +309,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
         longitude: event.longitude,
         maxParticipants: event.maxParticipants,
         organizerId: user?.id
-      }, { headers });
+      };
 
+      console.log('Wysyłam dane eventu:', eventData);
+
+      const response = await axios.post(
+        `${API_BASE_URL}/api/events/create`, 
+        eventData,
+        { headers }
+      );
+
+      console.log('Odpowiedź z serwera:', response.data);
       return response.data;
     } catch (error) {
       console.error('Błąd tworzenia eventu:', error);
@@ -360,13 +369,31 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   const getAllEvents = async (): Promise<Event[]> => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/events`);
-      return response.data;
-    } catch (error) {
-      console.error('Błąd pobierania eventów:', error);
-      return [];
+    const maxRetries = 3;
+    let retryCount = 0;
+
+    while (retryCount < maxRetries) {
+      try {
+        const headers = getAuthHeaders();
+        if (!headers) {
+          throw new Error('Brak tokenów autoryzacji');
+        }
+
+        const response = await axios.get(`${API_BASE_URL}/api/events`, {
+          headers: headers
+        });
+        return response.data;
+      } catch (error) {
+        retryCount++;
+        if (retryCount === maxRetries) {
+          console.error('Błąd pobierania eventów po ' + maxRetries + ' próbach:', error);
+          return [];
+        }
+        // Czekaj przed kolejną próbą (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
+      }
     }
+    return [];
   };
 
   const value: UserContextType = {
