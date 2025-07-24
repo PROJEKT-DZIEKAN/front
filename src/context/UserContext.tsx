@@ -78,17 +78,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Sprawdzanie uprawnień admina - na podstawie ról z JWT tokenu
   const isAdmin = useMemo(() => {
     const hasAdminRole = isAuthenticated && user?.roles?.includes('admin');
-    
-    // Debug popup dla telefonu - tylko gdy user jest zalogowany
-    if (isAuthenticated && user) {
-      alert(`🔍 Admin Check DEBUG:
-User ID: ${user.id}
-Authenticated: ${isAuthenticated}
-User Roles: ${JSON.stringify(user.roles)}
-Has ADMIN role: ${hasAdminRole}
-isAdmin result: ${hasAdminRole || false}`);
-    }
-    
     return hasAdminRole || false;
   }, [isAuthenticated, user]);
 
@@ -137,13 +126,6 @@ isAdmin result: ${hasAdminRole || false}`);
 
     const roles = Array.isArray(tokenData.role) ? tokenData.role : (tokenData.role ? [tokenData.role] : []);
     
-    // Debug popup dla telefonu
-    alert(`🔓 DEBUG Token data:
-ID: ${tokenData.sub}
-Name: ${tokenData.firstName} ${tokenData.surname}
-Roles: ${JSON.stringify(roles)}
-Raw role data: ${JSON.stringify(tokenData.role)}`);
-
     return {
       id: parseInt(tokenData.sub),
       firstName: tokenData.firstName,
@@ -316,8 +298,6 @@ Raw role data: ${JSON.stringify(tokenData.role)}`);
         console.error('Brak tokenów autoryzacji');
         return null;
       }
-
-      alert(`🚀 Wysyłam request z tokenem: ${headers.Authorization}`);
 
       const response = await axios.post(`${API_BASE_URL}/api/events/create`, {
         title: event.title,
