@@ -11,7 +11,8 @@ import {
   CalendarIcon,
   ClockIcon,
   MapPinIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { useUser } from '@/context/UserContext';
 import { format, parseISO } from 'date-fns';
@@ -52,7 +53,7 @@ export default function AdminPanel() {
     maxParticipants: undefined
   });
 
-  // Funkcja do ładowania eventów
+  // Funkcja do ładowania eventów - TYLKO ręczne wywołanie
   const loadEvents = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -60,15 +61,18 @@ export default function AdminPanel() {
       setEvents(eventsData);
     } catch (error) {
       console.error('Błąd ładowania eventów:', error);
+      setError('Nie można załadować eventów');
     } finally {
       setIsLoading(false);
     }
   }, [getAllEvents]);
 
-  // Załadowanie eventów przy inicjalizacji
-  useEffect(() => {
-    loadEvents();
-  }, [loadEvents]);
+  // USUWAM automatyczne ładowanie przy mount
+  // useEffect(() => {
+  //   loadEvents();
+  // }, [loadEvents]);
+
+  const [error, setError] = useState<string | null>(null);
 
   // Sprawdzenie uprawnień admina
   if (!isAdmin) {
@@ -113,9 +117,8 @@ export default function AdminPanel() {
         // Edycja istniejącego eventu
         const updated = await updateEvent(editingEvent.id, formData);
         if (updated) {
-          setEvents(prev => prev.map(event => 
-            event.id === editingEvent.id ? updated : event
-          ));
+          // Odśwież listę eventów z serwera po edycji
+          await loadEvents();
           setEditingEvent(null);
           alert('Event zaktualizowany pomyślnie!');
         } else {
@@ -123,12 +126,16 @@ export default function AdminPanel() {
         }
       } else {
         // Tworzenie nowego eventu
+        console.log('🚀 Tworzenie eventu z danymi:', formData);
         const newEvent = await createEvent(formData);
         if (newEvent) {
-          setEvents(prev => [...prev, newEvent]);
+          console.log('✅ Utworzono event:', newEvent);
+          // Odśwież listę eventów z serwera po dodaniu
+          await loadEvents();
           setShowAddForm(false);
           alert('Event utworzony pomyślnie!');
         } else {
+          console.log('❌ Nie udało się utworzyć eventu');
           alert('Błąd tworzenia eventu');
         }
       }
@@ -170,7 +177,8 @@ export default function AdminPanel() {
     try {
       const success = await deleteEvent(eventId);
       if (success) {
-        setEvents(prev => prev.filter(event => event.id !== eventId));
+        // Odśwież listę eventów z serwera po usunięciu
+        await loadEvents();
         alert('Event usunięty pomyślnie!');
       } else {
         alert('Błąd usuwania eventu');
@@ -215,7 +223,7 @@ export default function AdminPanel() {
 
       {/* Przycisk dodawania nowego eventu */}
       {!showAddForm && (
-        <div className="text-center">
+        <div className="text-center space-y-3">
           <button
             onClick={() => setShowAddForm(true)}
             className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center mx-auto"
@@ -223,6 +231,32 @@ export default function AdminPanel() {
             <PlusIcon className="h-5 w-5 mr-2" />
             Dodaj nowy event
           </button>
+          
+          <button
+            onClick={loadEvents}
+            disabled={isLoading}
+            className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center mx-auto text-sm"
+          >
+            <ArrowPathIcon className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            {isLoading ? 'Ładowanie...' : 'Załaduj eventy z serwera'}
+          </button>
+        </div>
+      )}
+
+      {/* Wyświetlanie błędu */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <XMarkIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Błąd</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{error}</p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

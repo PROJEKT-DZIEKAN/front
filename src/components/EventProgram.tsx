@@ -15,7 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { format, parseISO, isAfter, isBefore } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { useUser } from '@/context/UserContext';
+import { useUser, eventBus } from '@/context/UserContext';
 import axios from 'axios';
 
 // Usuwam debounce - nie jest potrzebny, bo nie będziemy automatycznie odświeżać
@@ -116,10 +116,20 @@ export default function EventProgram() {
     }
   }, [getAllEvents, user?.id]);
 
-  // Ładowanie eventów z API - TYLKO przy pierwszym załadowaniu, bez automatycznego odświeżania
+  // Nasłuchiwanie na nowe eventy z event bus
   useEffect(() => {
-    loadEventsFromAPI();
-  }, []); // Puste dependencies - tylko przy mount
+    const unsubscribe = eventBus.subscribe(() => {
+      console.log('🔔 Otrzymano informację o nowym evencie, odświeżam listę');
+      loadEventsFromAPI();
+    });
+
+    return unsubscribe;
+  }, [loadEventsFromAPI]);
+
+  // USUWAM automatyczne ładowanie - tylko ręczne przez przycisk
+  // useEffect(() => {
+  //   loadEventsFromAPI();
+  // }, []);
 
   // Funkcja do określania kategorii na podstawie tytułu i opisu
   const determineCategory = (title: string, description: string): Event['category'] => {
@@ -232,7 +242,7 @@ export default function EventProgram() {
         }
       }
 
-      // Odśwież listę eventów TYLKO po akcji użytkownika
+      // Odśwież listę eventów z serwera po akcji użytkownika
       await loadEventsFromAPI();
       
       alert(register ? 'Zarejestrowano pomyślnie!' : 'Wypisano z eventu!');

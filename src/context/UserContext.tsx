@@ -69,6 +69,25 @@ const decodeJWT = (token: string) => {
   }
 };
 
+// Prosty event bus do informowania o zmianach w eventach
+class EventBus {
+  private listeners: Array<() => void> = [];
+
+  subscribe(callback: () => void) {
+    this.listeners.push(callback);
+    return () => {
+      this.listeners = this.listeners.filter(listener => listener !== callback);
+    };
+  }
+
+  emit() {
+    this.listeners.forEach(listener => listener());
+  }
+}
+
+const eventBus = new EventBus();
+
+export { eventBus };
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -296,14 +315,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const headers = getAuthHeaders();
       if (!headers) {
         console.error('Brak tokenów autoryzacji');
+        alert('❌ Błąd: Brak tokenów autoryzacji. Zaloguj się ponownie.');
         return null;
       }
 
+      // Konwersja dat do formatu ISO jeśli potrzeba
       const eventData = {
         title: event.title,
         description: event.description,
-        startTime: event.startTime,
-        endTime: event.endTime,
+        startTime: event.startTime.includes('T') ? event.startTime : `${event.startTime}:00`,
+        endTime: event.endTime.includes('T') ? event.endTime : `${event.endTime}:00`,
         location: event.location,
         latitude: event.latitude,
         longitude: event.longitude,
@@ -311,7 +332,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
         organizerId: user?.id
       };
 
-      console.log('Wysyłam dane eventu:', eventData);
+      console.log('📤 Wysyłam dane eventu:', eventData);
+      console.log('🔑 Nagłówki:', headers);
 
       const response = await axios.post(
         `${API_BASE_URL}/api/events/create`, 
@@ -319,13 +341,30 @@ export function UserProvider({ children }: { children: ReactNode }) {
         { headers }
       );
 
-      console.log('Odpowiedź z serwera:', response.data);
+      console.log('📥 Odpowiedź z serwera:', response.data);
+      
+      // Informuj inne komponenty o nowym evencie
+      eventBus.emit();
+      
       return response.data;
     } catch (error) {
-      console.error('Błąd tworzenia eventu:', error);
+      console.error('❌ Błąd tworzenia eventu:', error);
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as AxiosErrorResponse;
-        alert(`❌ Błąd: ${axiosError.response?.status} - ${JSON.stringify(axiosError.response?.data)}`);
+        const status = axiosError.response?.status;
+        const data = axiosError.response?.data;
+        
+        console.error('Status:', status, 'Data:', data);
+        
+        if (status === 403) {
+          alert('❌ Błąd 403: Brak uprawnień. Sprawdź czy jesteś zalogowany jako admin.');
+        } else if (status === 400) {
+          alert(`❌ Błąd 400: Nieprawidłowe dane. ${JSON.stringify(data)}`);
+        } else {
+          alert(`❌ Błąd ${status}: ${JSON.stringify(data)}`);
+        }
+      } else {
+        alert('❌ Błąd połączenia z serwerem');
       }
       return null;
     }
@@ -370,6 +409,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const getAllEvents = async (): Promise<Event[]> => {
     try {
+      // Eventy są publiczne, nie wymagają autoryzacji
       const response = await axios.get(`${API_BASE_URL}/api/events`);
       return response.data;
     } catch (error) {
