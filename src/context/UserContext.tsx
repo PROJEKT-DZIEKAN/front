@@ -132,11 +132,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('refreshToken');
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null);
     setIsAuthenticated(false);
     clearTokens();
-  };
+  }, []);
 
   // Funkcja do wyciągania danych użytkownika z JWT tokenu
   const extractUserFromToken = useCallback((accessToken: string): User | null => {

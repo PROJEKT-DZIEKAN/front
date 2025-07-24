@@ -114,7 +114,7 @@ export default function EventProgram() {
     } finally {
       setIsLoading(false);
     }
-  }, [getAllEvents, user?.id]);
+  }, [getAllEvents, user?.id, isLoading]);
 
   // Nasłuchiwanie na nowe eventy z event bus
   useEffect(() => {
