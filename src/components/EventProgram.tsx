@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   CalendarIcon,
   ClockIcon,
@@ -81,17 +81,22 @@ export default function EventProgram() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadingRef = useRef(false); // Ref do śledzenia loading state
 
   const loadEventsFromAPI = useCallback(async () => {
-    if (isLoading) {
+    // Użyj ref zamiast state w dependency
+    if (loadingRef.current) {
       console.log('⚠️ Ładowanie już w toku, pomijam');
-      return; // Zapobiegaj wielokrotnym wywołaniom podczas ładowania
+      return;
     }
     
     try {
+      loadingRef.current = true;
       setIsLoading(true);
       setError(null);
+      console.log('🔄 Rozpoczynam ładowanie eventów...');
       const apiEvents = await getAllEvents();
+      console.log('📦 Otrzymane eventy z API:', apiEvents);
       
       // Konwersja eventów z API do formatu frontendowego
       const convertedEvents: Event[] = (apiEvents as ApiEvent[]).map((event: ApiEvent) => ({
@@ -108,16 +113,17 @@ export default function EventProgram() {
       }));
 
       setEvents(convertedEvents);
-      console.log('📅 Załadowano eventy z API:', convertedEvents.length);
+      console.log('✅ Załadowano eventy z API:', convertedEvents.length);
     } catch (error) {
       console.error('❌ Błąd ładowania eventów:', error);
       setError('Nie można załadować eventów. Spróbuj ponownie później.');
       console.log('🔄 Fallback do mock data');
       loadMockEvents(); // Fallback do mock data
     } finally {
+      loadingRef.current = false;
       setIsLoading(false);
     }
-  }, [getAllEvents, user?.id, isLoading]);
+  }, [getAllEvents, user?.id]); // Bez isLoading w dependencies
 
   // Nasłuchiwanie na nowe eventy z event bus
   useEffect(() => {

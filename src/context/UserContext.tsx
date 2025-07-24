@@ -411,17 +411,31 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const getAllEvents = async (): Promise<Event[]> => {
     try {
+      console.log('🔍 getAllEvents: Sprawdzam autoryzację...');
+      console.log('🔍 isAuthenticated:', isAuthenticated);
+      console.log('🔍 user:', user);
+      
       // Backend wymaga autoryzacji dla eventów
       const headers = getAuthHeaders();
       if (!headers) {
-        console.error('Brak tokenów autoryzacji dla getAllEvents');
+        console.error('❌ Brak tokenów autoryzacji dla getAllEvents');
+        console.log('🔍 Tokens:', localStorage.getItem('accessToken') ? 'EXISTS' : 'MISSING');
         throw new Error('Unauthorized - no tokens');
       }
       
+      console.log('✅ Headers gotowe:', headers);
+      console.log('🚀 Wysyłam request do:', `${API_BASE_URL}/api/events`);
+      
       const response = await axios.get(`${API_BASE_URL}/api/events`, { headers });
+      console.log('📥 Odpowiedź:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Błąd pobierania eventów:', error);
+      console.error('❌ Błąd pobierania eventów:', error);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number; data?: unknown } };
+        console.error('❌ Status:', axiosError.response?.status);
+        console.error('❌ Data:', axiosError.response?.data);
+      }
       // Nie próbujemy ponownie automatycznie - pozwalamy userowi zdecydować
       throw error; // Rzucamy błąd, żeby EventProgram mógł go obsłużyć
     }
