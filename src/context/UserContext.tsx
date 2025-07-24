@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import axios from 'axios';
 
 interface User {
@@ -124,8 +124,14 @@ isAdmin result: ${hasAdminRole || false}`);
     localStorage.removeItem('refreshToken');
   };
 
+  const logout = () => {
+    setUser(null);
+    setIsAuthenticated(false);
+    clearTokens();
+  };
+
   // Funkcja do wyciągania danych użytkownika z JWT tokenu
-  const extractUserFromToken = (accessToken: string): User | null => {
+  const extractUserFromToken = useCallback((accessToken: string): User | null => {
     const tokenData = decodeJWT(accessToken);
     if (!tokenData) return null;
 
@@ -145,7 +151,31 @@ Raw role data: ${JSON.stringify(tokenData.role)}`);
       registrationStatus: tokenData.status,
       roles: roles
     };
-  };
+  }, []); // Brak zależności, bo nie używa żadnych zmiennych z zewnątrz
+
+  const refreshAccessToken = useCallback(async (): Promise<boolean> => {
+    try {
+      const tokens = getTokens();
+      if (!tokens) return false;
+
+      const response = await axios.post(`${API_BASE_URL}/api/refresh-token`, {
+        refreshToken: tokens.refreshToken
+      });
+
+      const newTokens: AuthTokens = {
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken
+      };
+
+      saveTokens(newTokens);
+      return true;
+      
+    } catch (error) {
+      console.error('Błąd odświeżania tokenu:', error);
+      logout();
+      return false;
+    }
+  }, [logout]); // Dodaję logout jako zależność
 
 
   const loginWithUserId = async (userId: number): Promise<boolean> => {
@@ -214,39 +244,7 @@ Raw role data: ${JSON.stringify(tokenData.role)}`);
   };
 
 
-  const refreshAccessToken = async (): Promise<boolean> => {
-    try {
-      const tokens = getTokens();
-      if (!tokens) return false;
-
-      const response = await axios.post(`${API_BASE_URL}/api/refresh-token`, {
-        refreshToken: tokens.refreshToken
-      });
-
-      const newTokens: AuthTokens = {
-        accessToken: response.data.accessToken,
-        refreshToken: response.data.refreshToken
-      };
-
-      saveTokens(newTokens);
-      return true;
-      
-    } catch (error) {
-      console.error('Błąd odświeżania tokenu:', error);
-      logout();
-      return false;
-    }
-  };
-
-
-  const logout = () => {
-    setUser(null);
-    setIsAuthenticated(false);
-    clearTokens();
-  };
-
-  
-  const loadUserFromStorage = async () => {
+  const loadUserFromStorage = useCallback(async () => {
     try {
       const tokens = getTokens();
       if (!tokens) {
@@ -254,14 +252,20 @@ Raw role data: ${JSON.stringify(tokenData.role)}`);
         return;
       }
 
-     
       // Wyciągnij dane usera z JWT tokenu zamiast robić dodatkowe zapytanie
       const userData = extractUserFromToken(tokens.accessToken);
       if (!userData) {
         // Jeśli token jest nieprawidłowy, spróbuj odświeżyć
         const refreshSuccess = await refreshAccessToken();
         if (refreshSuccess) {
-          await loadUserFromStorage();
+          const newTokens = getTokens();
+          if (newTokens) {
+            const newUserData = extractUserFromToken(newTokens.accessToken);
+            if (newUserData) {
+              setUser(newUserData);
+              setIsAuthenticated(true);
+            }
+          }
         } else {
           clearTokens();
         }
@@ -273,22 +277,36 @@ Raw role data: ${JSON.stringify(tokenData.role)}`);
       
     } catch (error) {
       console.error('Błąd ładowania użytkownika:', error);
-     
+      
       const refreshSuccess = await refreshAccessToken();
       if (refreshSuccess) {
-        await loadUserFromStorage();
+        const newTokens = getTokens();
+        if (newTokens) {
+          const newUserData = extractUserFromToken(newTokens.accessToken);
+          if (newUserData) {
+            setUser(newUserData);
+            setIsAuthenticated(true);
+          }
+        }
       } else {
         clearTokens();
       }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [extractUserFromToken, refreshAccessToken]); // Dodaję zależności
 
- 
+  // Dodaję interface dla błędu axios
+  interface AxiosErrorResponse {
+    response?: {
+      status?: number;
+      data?: unknown;
+    };
+  }
+
   useEffect(() => {
     loadUserFromStorage();
-  }, []); 
+  }, [loadUserFromStorage]); // Dodaję zależność
 
   // Funkcje do zarządzania eventami
   const createEvent = async (event: Event): Promise<Event | null> => {
@@ -299,7 +317,6 @@ Raw role data: ${JSON.stringify(tokenData.role)}`);
         return null;
       }
 
-      // Dodaję debug alert
       alert(`🚀 Wysyłam request z tokenem: ${headers.Authorization}`);
 
       const response = await axios.post(`${API_BASE_URL}/api/events/create`, {
@@ -311,15 +328,14 @@ Raw role data: ${JSON.stringify(tokenData.role)}`);
         latitude: event.latitude,
         longitude: event.longitude,
         maxParticipants: event.maxParticipants,
-        organizerId: user?.id // Wysyłam tylko ID organizatora
+        organizerId: user?.id
       }, { headers });
 
       return response.data;
     } catch (error) {
       console.error('Błąd tworzenia eventu:', error);
-      // Dodaję debug alert dla błędu
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as any;
+        const axiosError = error as AxiosErrorResponse;
         alert(`❌ Błąd: ${axiosError.response?.status} - ${JSON.stringify(axiosError.response?.data)}`);
       }
       return null;
