@@ -411,8 +411,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const getAllEvents = async (): Promise<Event[]> => {
     try {
-      // Eventy są publiczne, nie wymagają autoryzacji
-      const response = await axios.get(`${API_BASE_URL}/api/events`);
+      // Backend wymaga autoryzacji dla eventów
+      const headers = getAuthHeaders();
+      if (!headers) {
+        console.error('Brak tokenów autoryzacji dla getAllEvents');
+        throw new Error('Unauthorized - no tokens');
+      }
+      
+      const response = await axios.get(`${API_BASE_URL}/api/events`, { headers });
       return response.data;
     } catch (error) {
       console.error('Błąd pobierania eventów:', error);
