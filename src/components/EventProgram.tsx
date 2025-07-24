@@ -9,12 +9,27 @@ import {
   LinkIcon,
   StarIcon,
   CheckCircleIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  ArrowPathIcon,
+  ExclamationCircleIcon
 } from '@heroicons/react/24/outline';
 import { format, parseISO, isAfter, isBefore } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { useUser } from '@/context/UserContext';
 import axios from 'axios';
+
+// Dodaję funkcję debounce
+const debounce = (func: Function, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return function executedFunction(...args: any[]) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
 
 interface User {
   id: number;
@@ -77,10 +92,14 @@ export default function EventProgram() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const loadEventsFromAPI = useCallback(async () => {
-    setIsLoading(true);
+    if (isLoading) return; // Zapobiegaj wielokrotnym wywołaniom podczas ładowania
+    
     try {
+      setIsLoading(true);
+      setError(null);
       const apiEvents = await getAllEvents();
       
       // Konwersja eventów z API do formatu frontendowego
@@ -101,6 +120,7 @@ export default function EventProgram() {
       console.log('📅 Załadowano eventy z API:', convertedEvents.length);
     } catch (error) {
       console.error('❌ Błąd ładowania eventów:', error);
+      setError('Nie można załadować eventów. Spróbuj ponownie później.');
       console.log('🔄 Fallback do mock data');
       loadMockEvents(); // Fallback do mock data
     } finally {
@@ -108,10 +128,23 @@ export default function EventProgram() {
     }
   }, [getAllEvents, user?.id]);
 
+  // Używam debounce dla loadEventsFromAPI
+  const debouncedLoadEvents = useCallback(
+    debounce(() => loadEventsFromAPI(), 5000), // 5 sekund debounce
+    [loadEventsFromAPI]
+  );
+
   // Ładowanie eventów z API
   useEffect(() => {
-    loadEventsFromAPI();
-  }, [loadEventsFromAPI]);
+    debouncedLoadEvents();
+    
+    // Ustawiam interwał na odświeżanie co 30 sekund
+    const interval = setInterval(debouncedLoadEvents, 30000);
+    
+    return () => {
+      clearInterval(interval);
+    };
+  }, [debouncedLoadEvents]);
 
   // Funkcja do określania kategorii na podstawie tytułu i opisu
   const determineCategory = (title: string, description: string): Event['category'] => {
@@ -304,29 +337,36 @@ export default function EventProgram() {
 
   return (
     <div className="p-4 space-y-6">
-      {/* Header */}
-      <div className="text-center">
-        <CalendarIcon className="h-12 w-12 text-blue-500 mx-auto mb-4" />
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Program Wydarzenia</h1>
-        <p className="text-gray-600">Wszystkie wydarzenia, warsztaty i prezentacje</p>
-        {isLoading && (
-          <div className="flex items-center justify-center mt-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-            <span className="text-sm text-blue-600">Ładowanie...</span>
-          </div>
-        )}
+      {/* Nagłówek z przyciskiem odświeżania */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">Program wydarzeń</h2>
+        <button
+          onClick={() => {
+            setError(null);
+            loadEventsFromAPI();
+          }}
+          className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          disabled={isLoading}
+        >
+          <ArrowPathIcon className={`h-5 w-5 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+          {isLoading ? 'Ładowanie...' : 'Odśwież'}
+        </button>
       </div>
 
-      {/* Refresh Button - tylko dla zalogowanych */}
-      {isAuthenticated && (
-        <div className="text-center">
-          <button
-            onClick={loadEventsFromAPI}
-            disabled={isLoading}
-            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors disabled:bg-gray-300 text-sm"
-          >
-            {isLoading ? 'Odświeżanie...' : 'Odśwież wydarzenia'}
-          </button>
+      {/* Wyświetlanie błędu */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <ExclamationCircleIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Błąd ładowania</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{error}</p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
