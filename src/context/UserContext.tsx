@@ -299,6 +299,9 @@ Raw role data: ${JSON.stringify(tokenData.role)}`);
         return null;
       }
 
+      // Dodaję debug alert
+      alert(`🚀 Wysyłam request z tokenem: ${headers.Authorization}`);
+
       const response = await axios.post(`${API_BASE_URL}/api/events/create`, {
         title: event.title,
         description: event.description,
@@ -308,12 +311,17 @@ Raw role data: ${JSON.stringify(tokenData.role)}`);
         latitude: event.latitude,
         longitude: event.longitude,
         maxParticipants: event.maxParticipants,
-        organizer: user // Ustawiam aktualnego usera jako organizatora
+        organizerId: user?.id // Wysyłam tylko ID organizatora
       }, { headers });
 
       return response.data;
     } catch (error) {
       console.error('Błąd tworzenia eventu:', error);
+      // Dodaję debug alert dla błędu
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as any;
+        alert(`❌ Błąd: ${axiosError.response?.status} - ${JSON.stringify(axiosError.response?.data)}`);
+      }
       return null;
     }
   };
