@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { useAuth } from './useAuth';
@@ -38,26 +38,26 @@ export const useChat = () => {
   const [allUsers, setAllUsers] = useState<Map<number, User>>(new Map());
   const [mockMode, setMockMode] = useState(false);
 
-  // Mock data dla fallback
-  const mockUsers = new Map<number, User>([
+  // Mock data dla fallback - używam useMemo żeby nie rekonstruować za każdym renderem
+  const mockUsers = useMemo(() => new Map<number, User>([
     [1, { id: 1, firstName: 'Admin', surname: 'Główny', roles: ['admin'] }],
     [2, { id: 2, firstName: 'Anna', surname: 'Kowalska', roles: ['admin'] }],
     [3, { id: 3, firstName: 'Jan', surname: 'Nowak', roles: ['user'] }],
     [4, { id: 4, firstName: 'Maria', surname: 'Wiśniewska', roles: ['user'] }],
-  ]);
+  ]), []);
 
-  const mockChatsData: Chat[] = [
+  const mockChatsData = useMemo((): Chat[] => [
     { id: 1, userAId: 1, userBId: 3, createdAt: new Date().toISOString() },
     { id: 2, userAId: 2, userBId: 4, createdAt: new Date().toISOString() },
-  ];
+  ], []);
 
-  const enableMockMode = () => {
+  const enableMockMode = useCallback(() => {
     console.log('📱 Enabling mock mode...');
     setMockMode(true);
     setConnected(true);
     setAllUsers(mockUsers);
     setChats(mockChatsData);
-  };
+  }, [mockUsers, mockChatsData]);
 
   // Prawdziwe połączenie WebSocket
   useEffect(() => {
@@ -124,7 +124,7 @@ export const useChat = () => {
       console.log('Deactivating WebSocket connection...');
       stompClient.deactivate();
     };
-  }, [user, token]);
+  }, [user, token, enableMockMode]);
 
   // Pobieranie chatów z backendu
   const fetchChats = useCallback(async () => {
@@ -161,7 +161,7 @@ export const useChat = () => {
       console.log('🔄 Using mock chats due to network error');
       setChats(mockChatsData);
     }
-  }, [user, token]);
+  }, [user, token, mockChatsData]);
 
   // Pobieranie wszystkich użytkowników (dla adminów)
   const fetchAllUsers = useCallback(async () => {
@@ -208,7 +208,7 @@ export const useChat = () => {
       console.log('🔄 Using mock users due to network error');
       setAllUsers(mockUsers);
     }
-  }, [token]);
+  }, [token, mockUsers]);
 
   // Filtrowanie chatów na podstawie roli
   const getFilteredChats = useCallback(() => {
@@ -308,11 +308,11 @@ export const useChat = () => {
                           u.roles?.includes('ADMIN') ||
                           u.roles?.includes('Admin') ||
                           // Może role są w obiekcie?
-                          u.roles?.some((role: any) => 
+                          u.roles?.some((role: string | { roleName?: string }) => 
                             role === 'admin' || 
                             role === 'ADMIN' || 
-                            role?.roleName === 'admin' || 
-                            role?.roleName === 'ADMIN'
+                            (typeof role === 'object' && role?.roleName === 'admin') || 
+                            (typeof role === 'object' && role?.roleName === 'ADMIN')
                           );
       
       console.log(`  → hasAdminRole: ${hasAdminRole}`);
