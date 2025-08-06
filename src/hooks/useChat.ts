@@ -280,12 +280,31 @@ export const useChat = () => {
 
   // Znajdź pierwszego dostępnego admina (dla użytkowników)
   const findAvailableAdmin = useCallback((): User | null => {
-    if (isAdmin) return null;
-
-    const admins = Array.from(allUsers.values()).filter(u => 
-      u.roles?.includes('admin')
-    );
+    console.log('🔍 findAvailableAdmin called:', { 
+      isAdmin, 
+      allUsersSize: allUsers.size,
+      allUsersEntries: Array.from(allUsers.entries())
+    });
     
+    if (isAdmin) {
+      console.log('❌ Current user is admin, returning null');
+      return null;
+    }
+
+    const allUsersArray = Array.from(allUsers.values());
+    console.log('👥 All users:', allUsersArray);
+    
+    const admins = allUsersArray.filter(u => {
+      const hasAdminRole = u.roles?.includes('admin') || u.roles?.includes('ADMIN');
+      console.log(`👤 User ${u.firstName} ${u.surname}:`, {
+        id: u.id,
+        roles: u.roles,
+        hasAdminRole
+      });
+      return hasAdminRole;
+    });
+    
+    console.log('👑 Found admins:', admins);
     return admins.length > 0 ? admins[0] : null;
   }, [isAdmin, allUsers]);
 
