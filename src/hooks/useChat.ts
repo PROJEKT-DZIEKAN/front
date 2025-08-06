@@ -305,10 +305,19 @@ export const useChat = () => {
     console.log('✅ All checks passed, proceeding with chat creation...');
 
     try {
+      console.log('🌐 Making API request:', {
+        url: `${API_BASE_URL}/api/chats/get-or-create`,
+        userAId: user.id,
+        userBId: otherUserId,
+        hasToken: !!token,
+        tokenLength: token?.length
+      });
+
       const response = await fetch(`${API_BASE_URL}/api/chats/get-or-create`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         credentials: 'include',
         body: JSON.stringify({
