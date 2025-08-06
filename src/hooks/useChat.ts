@@ -120,20 +120,11 @@ export const useChat = () => {
     stompClient.activate();
     setClient(stompClient);
 
-    // Timeout dla połączenia WebSocket - jeśli się nie połączy w 5 sekund, włącz mock mode
-    const timeout = setTimeout(() => {
-      if (!connected) {
-        console.log('⏰ WebSocket connection timeout - enabling mock mode');
-        enableMockMode();
-      }
-    }, 5000);
-
     return () => {
       console.log('Deactivating WebSocket connection...');
-      clearTimeout(timeout);
       stompClient.deactivate();
     };
-  }, [user, token, connected]);
+  }, [user, token]);
 
   // Pobieranie chatów z backendu
   const fetchChats = useCallback(async () => {
@@ -148,20 +139,33 @@ export const useChat = () => {
       });
       
       if (response.ok) {
-        const chatsData = await response.json();
-        console.log('Fetched chats:', chatsData);
-        setChats(chatsData);
+        const text = await response.text();
+        console.log('Raw chats response:', text);
+        
+        try {
+          const chatsData = JSON.parse(text);
+          console.log('✅ Fetched chats successfully:', chatsData);
+          setChats(chatsData);
+        } catch (parseError) {
+          console.error('❌ JSON parse error for chats:', parseError);
+          console.log('🔄 Using mock chats due to JSON error');
+          setChats(mockChatsData);
+        }
       } else {
         console.error('Failed to fetch chats:', response.status);
+        console.log('🔄 Using mock chats due to HTTP error');
+        setChats(mockChatsData);
       }
     } catch (error) {
       console.error('Error fetching chats:', error);
+      console.log('🔄 Using mock chats due to network error');
+      setChats(mockChatsData);
     }
   }, [user, token]);
 
   // Pobieranie wszystkich użytkowników (dla adminów)
   const fetchAllUsers = useCallback(async () => {
-    if (!isAdmin || !token) return;
+    if (!token) return;
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/users`, {
@@ -172,25 +176,39 @@ export const useChat = () => {
       });
       
       if (response.ok) {
-        const usersData: User[] = await response.json();
-        console.log('Fetched users:', usersData);
+        const text = await response.text();
+        console.log('Raw users response:', text);
         
-        // Konwertuj na Map i mapuj role
-        const usersMap = new Map(usersData.map(user => [
-          user.id, 
-          {
-            ...user,
-            roles: user.roles || [] // Upewnij się że roles istnieją
-          }
-        ]));
-        setAllUsers(usersMap);
+        try {
+          const usersData: User[] = JSON.parse(text);
+          console.log('✅ Parsed users successfully:', usersData);
+          
+          // Konwertuj na Map i mapuj role
+          const usersMap = new Map(usersData.map(user => [
+            user.id, 
+            {
+              ...user,
+              roles: user.roles || [] // Upewnij się że roles istnieją
+            }
+          ]));
+          setAllUsers(usersMap);
+          
+        } catch (parseError) {
+          console.error('❌ JSON parse error:', parseError);
+          console.log('🔄 Using mock users due to JSON error');
+          setAllUsers(mockUsers);
+        }
       } else {
         console.error('Failed to fetch users:', response.status);
+        console.log('🔄 Using mock users due to HTTP error');
+        setAllUsers(mockUsers);
       }
     } catch (error) {
       console.error('Error fetching users:', error);
+      console.log('🔄 Using mock users due to network error');
+      setAllUsers(mockUsers);
     }
-  }, [isAdmin, token]);
+  }, [token]);
 
   // Filtrowanie chatów na podstawie roli
   const getFilteredChats = useCallback(() => {

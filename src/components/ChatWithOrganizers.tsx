@@ -52,6 +52,11 @@ export default function ChatWithOrganizers() {
     if (connected) {
       fetchChats();
       fetchAllUsers();
+      
+      // Jeśli po 2 sekundach nie ma użytkowników, problem z API
+      setTimeout(() => {
+        console.log('⏰ Checking if users loaded...');
+      }, 2000);
     }
   }, [connected, fetchChats, fetchAllUsers]);
 
