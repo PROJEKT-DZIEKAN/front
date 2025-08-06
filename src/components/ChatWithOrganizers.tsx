@@ -172,7 +172,7 @@ export default function ChatWithOrganizers() {
             </div>
             {!isAdmin && (
               <button
-                onClick={(e) => {
+                onClick={() => {
                   console.log('🔥 BUTTON CLICKED!', { connected, isAuthenticated, isAdmin });
                   handleStartSupport();
                 }}

@@ -319,11 +319,7 @@ export const useChat = () => {
         console.log('Created/got chat:', chat);
         await fetchChats(); // Odśwież listę chatów
         
-        // Załaduj historię dla tego chatu
-        if (chat.id) {
-          console.log('📜 Loading history for new chat:', chat.id);
-          loadHistory(chat.id);
-        }
+        // Historia zostanie załadowana przez wywołującego
         
         return chat;
       } else {
@@ -420,7 +416,15 @@ export const useChat = () => {
     }
 
     console.log('👑 Found admin:', admin);
-    return await getOrCreateChat(admin.id);
+    const chat = await getOrCreateChat(admin.id);
+    
+    // Załaduj historię po utworzeniu chatu
+    if (chat?.id) {
+      console.log('📜 Loading history for new chat:', chat.id);
+      setTimeout(() => loadHistory(chat.id), 100); // Small delay to ensure WebSocket is ready
+    }
+    
+    return chat;
   }, [findAvailableAdmin, getOrCreateChat, allUsers, mockMode, chats, user]);
 
   // Wysyłanie wiadomości przez WebSocket
