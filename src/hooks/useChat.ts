@@ -229,34 +229,85 @@ export const useChat = () => {
 
   // Sprawdzenie czy użytkownik może tworzyć chat z daną osobą
   const canChatWith = useCallback((otherUserId: number): boolean => {
-    if (!user) return false;
+    console.log('🔍 canChatWith called:', {
+      currentUserId: user?.id,
+      otherUserId,
+      isAdmin,
+      allUsersSize: allUsers.size
+    });
+
+    if (!user) {
+      console.log('❌ No current user');
+      return false;
+    }
 
     const otherUser = allUsers.get(otherUserId);
-    if (!otherUser) return false;
+    if (!otherUser) {
+      console.log('❌ Other user not found:', otherUserId);
+      console.log('Available users:', Array.from(allUsers.keys()));
+      return false;
+    }
 
-    const otherIsAdmin = otherUser.roles?.includes('admin');
+    console.log('👤 Other user found:', {
+      id: otherUser.id,
+      name: `${otherUser.firstName} ${otherUser.surname}`,
+      roles: otherUser.roles
+    });
+
+    const otherIsAdmin = otherUser.roles?.includes('admin') || otherUser.roles?.includes('ADMIN');
+    
+    console.log('🔐 Permission check:', {
+      currentUserIsAdmin: isAdmin,
+      otherUserIsAdmin: otherIsAdmin,
+      rule: 'admin<->user only'
+    });
 
     // Dozwolone tylko admin <-> user
-    if (isAdmin && otherIsAdmin) return false; // admin -> admin: NIE
-    if (!isAdmin && !otherIsAdmin) return false; // user -> user: NIE
+    if (isAdmin && otherIsAdmin) {
+      console.log('❌ admin -> admin: BLOCKED');
+      return false;
+    }
+    if (!isAdmin && !otherIsAdmin) {
+      console.log('❌ user -> user: BLOCKED');
+      return false;
+    }
     
+    console.log('✅ admin <-> user: ALLOWED');
     return true; // admin -> user lub user -> admin: TAK
   }, [user, isAdmin, allUsers]);
 
   // Tworzenie lub pobieranie chatu
   const getOrCreateChat = useCallback(async (otherUserId: number): Promise<Chat | null> => {
-    if (!user || !token || !canChatWith(otherUserId)) {
-      console.error('Nie można utworzyć chatu z tym użytkownikiem');
+    console.log('🏗️ getOrCreateChat called:', {
+      hasUser: !!user,
+      hasToken: !!token,
+      otherUserId
+    });
+
+    if (!user) {
+      console.error('❌ No user');
       return null;
     }
+    if (!token) {
+      console.error('❌ No token');
+      return null;
+    }
+    
+    const canChat = canChatWith(otherUserId);
+    if (!canChat) {
+      console.error('❌ canChatWith returned false');
+      return null;
+    }
+
+    console.log('✅ All checks passed, proceeding with chat creation...');
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/chats/get-or-create`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
           userAId: user.id,
           userBId: otherUserId
@@ -267,6 +318,13 @@ export const useChat = () => {
         const chat = await response.json();
         console.log('Created/got chat:', chat);
         await fetchChats(); // Odśwież listę chatów
+        
+        // Załaduj historię dla tego chatu
+        if (chat.id) {
+          console.log('📜 Loading history for new chat:', chat.id);
+          loadHistory(chat.id);
+        }
+        
         return chat;
       } else {
         console.error('Failed to create chat:', response.status);
