@@ -356,6 +356,14 @@ export const useChat = () => {
         rolesLength: u.roles?.length
       });
       
+      // WYPISZ DOKŁADNIE JAKIE SĄ ROLE!
+      console.log(`  → EXACT ROLES:`, JSON.stringify(u.roles));
+      if (u.roles && Array.isArray(u.roles)) {
+        u.roles.forEach((role, i) => {
+          console.log(`    [${i}]: "${role}" (type: ${typeof role})`);
+        });
+      }
+      
       // DOKŁADNIE TA SAMA LOGIKA CO W UserContext.tsx LINE 109!
       const hasAdminRole = u.roles?.includes('admin');
       console.log(`  → UserContext logic result: ${hasAdminRole}`);
