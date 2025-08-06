@@ -4,10 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/hooks/useChat';
 import { 
-  ChatBubbleLeftRightIcon,
   PaperAirplaneIcon,
-  UserIcon,
-  ClockIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 
@@ -55,7 +52,7 @@ export default function AdminChatPanel() {
     }
   };
 
-  const getChatTitle = (chat: any) => {
+  const getChatTitle = (chat: Chat) => {
     const userA = allUsers.get(chat.userAId);
     const userB = allUsers.get(chat.userBId);
     const userAName = userA ? `${userA.firstName} ${userA.surname}` : `User ${chat.userAId}`;

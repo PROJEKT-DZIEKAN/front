@@ -4,23 +4,13 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   ChatBubbleLeftRightIcon,
   PaperAirplaneIcon,
-  UserIcon,
-  ClockIcon,
-  CheckCircleIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
-import { format } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/hooks/useChat';
 
-interface Message {
-  id: string;
-  content: string;
-  sender: 'user' | 'organizer';
-  senderName: string;
-  timestamp: Date;
-  read: boolean;
-}
+// Interface Message nie jest używany w nowym systemie - usuwam
+// Używamy Message z useChat hook
 
 export default function ChatWithOrganizers() {
   const { user, isAuthenticated, isAdmin } = useAuth();
@@ -39,7 +29,6 @@ export default function ChatWithOrganizers() {
   
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [newMessage, setNewMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -88,7 +77,7 @@ export default function ChatWithOrganizers() {
     }
   };
 
-  const getChatAdmin = (chat: any) => {
+  const getChatAdmin = (chat: { userAId: number; userBId: number }) => {
     // Znajdź administratora w tym chacie
     const userA = allUsers.get(chat.userAId);
     const userB = allUsers.get(chat.userBId);
