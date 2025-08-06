@@ -113,8 +113,14 @@ export default function ChatWithOrganizers() {
     const userA = allUsers.get(chat.userAId);
     const userB = allUsers.get(chat.userBId);
     
-    const userAIsAdmin = userA?.roles?.includes('admin');
-    const userBIsAdmin = userB?.roles?.includes('admin');
+    const userAIsAdmin = userA?.roles?.includes('admin') || 
+                         userA?.roles?.some((role: string | { roleName?: string }) => 
+                           typeof role === 'object' && role?.roleName === 'admin'
+                         );
+    const userBIsAdmin = userB?.roles?.includes('admin') || 
+                         userB?.roles?.some((role: string | { roleName?: string }) => 
+                           typeof role === 'object' && role?.roleName === 'admin'
+                         );
     
     if (userAIsAdmin && chat.userAId !== user?.id) {
       return userA;
@@ -251,7 +257,10 @@ export default function ChatWithOrganizers() {
                   .map((msg, index) => {
                     const sender = allUsers.get(msg.senderId);
                     const isMyMessage = msg.senderId === user?.id;
-                    const senderIsAdmin = sender?.roles?.includes('admin');
+                    const senderIsAdmin = sender?.roles?.includes('admin') || 
+                              sender?.roles?.some((role: string | { roleName?: string }) => 
+                                typeof role === 'object' && role?.roleName === 'admin'
+                              );
                     
                     return (
                       <div key={index} className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}>

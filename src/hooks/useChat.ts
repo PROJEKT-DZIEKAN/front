@@ -254,7 +254,10 @@ export const useChat = () => {
       roles: otherUser.roles
     });
 
-    const otherIsAdmin = otherUser.roles?.includes('admin');
+    const otherIsAdmin = otherUser.roles?.includes('admin') || 
+                         otherUser.roles?.some((role: string | { roleName?: string }) => 
+                           typeof role === 'object' && role?.roleName === 'admin'
+                         );
     
     console.log('🔐 Permission check:', {
       currentUserIsAdmin: isAdmin,
@@ -364,9 +367,12 @@ export const useChat = () => {
         });
       }
       
-      // DOKŁADNIE TA SAMA LOGIKA CO W UserContext.tsx LINE 109!
-      const hasAdminRole = u.roles?.includes('admin');
-      console.log(`  → UserContext logic result: ${hasAdminRole}`);
+      // NAPRAWIONA LOGIKA - sprawdza zarówno string jak i obiekt!
+      const hasAdminRole = u.roles?.includes('admin') || // string format
+                           u.roles?.some((role: string | { roleName?: string }) => 
+                             typeof role === 'object' && role?.roleName === 'admin'
+                           ); // object format
+      console.log(`  → FIXED logic result: ${hasAdminRole}`);
       return hasAdminRole;
     });
     

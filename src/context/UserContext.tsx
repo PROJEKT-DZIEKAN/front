@@ -106,7 +106,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   // Sprawdzanie uprawnień admina - na podstawie ról z JWT tokenu
   const isAdmin = useMemo(() => {
-    const hasAdminRole = isAuthenticated && user?.roles?.includes('admin');
+    const hasAdminRole = isAuthenticated && (
+      user?.roles?.includes('admin') || 
+      user?.roles?.some((role: string | { roleName?: string }) => 
+        typeof role === 'object' && role?.roleName === 'admin'
+      )
+    );
     return hasAdminRole || false;
   }, [isAuthenticated, user]);
 
