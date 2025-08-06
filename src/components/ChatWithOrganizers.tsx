@@ -172,7 +172,10 @@ export default function ChatWithOrganizers() {
             </div>
             {!isAdmin && (
               <button
-                onClick={handleStartSupport}
+                onClick={(e) => {
+                  console.log('🔥 BUTTON CLICKED!', { connected, isAuthenticated, isAdmin });
+                  handleStartSupport();
+                }}
                 disabled={!connected}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 transition-colors flex items-center gap-2"
               >

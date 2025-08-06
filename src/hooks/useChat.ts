@@ -357,33 +357,12 @@ export const useChat = () => {
         id: u.id,
         roles: u.roles,
         rolesType: typeof u.roles,
-        rolesLength: u.roles?.length,
-        fullUser: u
+        rolesLength: u.roles?.length
       });
       
-      // DEBUGUJ DOKŁADNIE JAKIE SĄ ROLE
-      console.log(`  → Raw roles:`, u.roles);
-      if (u.roles && Array.isArray(u.roles)) {
-        u.roles.forEach((role, index) => {
-          console.log(`    [${index}]:`, role, typeof role);
-        });
-      }
-      
-      // Sprawdź różne możliwości
-      const hasAdmin1 = u.roles?.includes('admin');
-      const hasAdmin2 = u.roles?.includes('ADMIN'); 
-      const hasAdmin3 = u.roles?.includes('Admin');
-      const hasAdmin4 = u.roles?.some(r => r?.toLowerCase?.() === 'admin');
-      
-      console.log(`  → Role checks:`, {
-        'admin': hasAdmin1,
-        'ADMIN': hasAdmin2, 
-        'Admin': hasAdmin3,
-        'toLowerCase': hasAdmin4
-      });
-      
-      const hasAdminRole = hasAdmin1 || hasAdmin2 || hasAdmin3 || hasAdmin4;
-      console.log(`  → Final hasAdminRole: ${hasAdminRole}`);
+      // DOKŁADNIE TA SAMA LOGIKA CO W UserContext.tsx LINE 109!
+      const hasAdminRole = u.roles?.includes('admin');
+      console.log(`  → UserContext logic result: ${hasAdminRole}`);
       return hasAdminRole;
     });
     
