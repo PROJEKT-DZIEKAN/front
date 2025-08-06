@@ -3,12 +3,18 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import axios from 'axios';
 
+interface Role {
+  id: number;
+  roleName: string;
+}
+
 interface User {
   id: number;
   firstName: string;
   surname: string;
   registrationStatus?: string;
-  roles?: string[]; // Dodaję role z JWT tokenu
+  roles?: string[]; // Dodaję role z JWT tokenu - zachowuję dla kompatybilności
+  roleObjects?: Role[]; // Dodaję obiekty ról jak w kodzie Java
 }
 
 interface AuthTokens {
@@ -37,8 +43,11 @@ interface UserContextType {
   isLoading: boolean;
   isAdmin: boolean; // Sprawdzanie na podstawie ról z JWT
   loginWithUserId: (userId: number) => Promise<boolean>;
+  login: (token: string) => Promise<void>; // Dodaję dla kompatybilności z useAuth
   logout: () => void;
   refreshAccessToken: () => Promise<boolean>;
+  loading: boolean; // Alias dla isLoading dla kompatybilności
+  token: string | null; // Dodaję token dla kompatybilności
   // Dodaję funkcje do zarządzania eventami
   createEvent: (event: Event) => Promise<Event | null>;
   updateEvent: (id: number, event: Event) => Promise<Event | null>;
@@ -93,6 +102,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [token, setToken] = useState<string | null>(null);
 
   // Sprawdzanie uprawnień admina - na podstawie ról z JWT tokenu
   const isAdmin = useMemo(() => {
@@ -115,6 +125,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const saveTokens = (tokens: AuthTokens) => {
     localStorage.setItem('accessToken', tokens.accessToken);
     localStorage.setItem('refreshToken', tokens.refreshToken);
+    setToken(tokens.accessToken);
   };
 
   const getTokens = (): AuthTokens | null => {
@@ -130,6 +141,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const clearTokens = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    setToken(null);
   };
 
   const logout = useCallback(() => {
@@ -169,6 +181,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       };
 
       saveTokens(newTokens);
+      setToken(newTokens.accessToken);
       return true;
       
     } catch (error) {
@@ -202,6 +215,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
       setUser(userData);
       setIsAuthenticated(true);
+      setToken(tokens.accessToken);
       return true;
       
     } catch (error) {
@@ -265,6 +279,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
             if (newUserData) {
               setUser(newUserData);
               setIsAuthenticated(true);
+              setToken(newTokens.accessToken);
             }
           }
         } else {
@@ -275,6 +290,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
       setUser(userData);
       setIsAuthenticated(true);
+      setToken(tokens.accessToken);
       
     } catch (error) {
       console.error('Błąd ładowania użytkownika:', error);
@@ -287,6 +303,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           if (newUserData) {
             setUser(newUserData);
             setIsAuthenticated(true);
+            setToken(newTokens.accessToken);
           }
         }
       } else {
@@ -441,14 +458,29 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Dodaję funkcję login dla kompatybilności
+  const login = useCallback(async (authToken: string) => {
+    setToken(authToken);
+    localStorage.setItem('accessToken', authToken);
+    
+    const userData = extractUserFromToken(authToken);
+    if (userData) {
+      setUser(userData);
+      setIsAuthenticated(true);
+    }
+  }, [extractUserFromToken]);
+
   const value: UserContextType = {
     user,
     isAuthenticated,
     isLoading,
     isAdmin,
     loginWithUserId,
+    login,
     logout,
     refreshAccessToken,
+    loading: isLoading, // alias
+    token,
     // Dodaję funkcje do zarządzania eventami
     createEvent,
     updateEvent,

@@ -6,9 +6,12 @@ import {
   PaperAirplaneIcon,
   UserIcon,
   ClockIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
+import { useAuth } from '@/hooks/useAuth';
+import { useChat } from '@/hooks/useChat';
 
 interface Message {
   id: string;
@@ -20,7 +23,21 @@ interface Message {
 }
 
 export default function ChatWithOrganizers() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { user, isAuthenticated, isAdmin } = useAuth();
+  const { 
+    connected, 
+    messages: chatMessages, 
+    chats, 
+    allUsers, 
+    sendMessage, 
+    loadHistory, 
+    fetchChats, 
+    fetchAllUsers,
+    startSupportChat,
+    hasAccessToChat 
+  } = useChat();
+  
+  const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -31,218 +48,243 @@ export default function ChatWithOrganizers() {
   };
 
   useEffect(() => {
-    // Mock chat history
-    const mockMessages: Message[] = [
-      {
-        id: '1',
-        content: 'Cześć! Witamy w systemie czatu z organizatorami. Jak możemy Ci pomóc?',
-        sender: 'organizer',
-        senderName: 'Anna - Organizator',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        read: true
-      },
-      {
-        id: '2',
-        content: 'Cześć! Mam problem z QR kodem do rejestracji. Nie skanuje się poprawnie.',
-        sender: 'user',
-        senderName: 'Ty',
-        timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000),
-        read: true
-      },
-      {
-        id: '3',
-        content: 'Sprawdziłam Twój profil - widzę, że pierwsza rejestracja została już zakończona. Spróbuj zeskanować QR kod ponownie, trzymając telefon stabilnie. Jeśli nadal nie działa, przyjdź do punktu obsługi w holu głównym.',
-        sender: 'organizer',
-        senderName: 'Anna - Organizator',
-        timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
-        read: true
-      },
-      {
-        id: '4',
-        content: 'Dziękuję! Udało się, kod zadziałał. Mam jeszcze pytanie - czy można zmienić grupę?',
-        sender: 'user',
-        senderName: 'Ty',
-        timestamp: new Date(Date.now() - 30 * 60 * 1000),
-        read: true
-      }
-    ];
-
-    setMessages(mockMessages);
-    scrollToBottom();
-  }, []);
+    if (connected) {
+      fetchChats();
+      fetchAllUsers();
+    }
+  }, [connected, fetchChats, fetchAllUsers]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [chatMessages]);
 
-  const sendMessage = () => {
-    if (!newMessage.trim()) return;
-
-    const message: Message = {
-      id: Date.now().toString(),
-      content: newMessage.trim(),
-      sender: 'user',
-      senderName: 'Ty',
-      timestamp: new Date(),
-      read: false
-    };
-
-    setMessages(prev => [...prev, message]);
-    setNewMessage('');
-    
-    // Simulate organizer response
-    setIsTyping(true);
-    setTimeout(() => {
-      const response: Message = {
-        id: (Date.now() + 1).toString(),
-        content: generateResponse(newMessage),
-        sender: 'organizer',
-        senderName: 'Michał - Organizator',
-        timestamp: new Date(),
-        read: false
-      };
-      
-      setMessages(prev => [...prev, response]);
-      setIsTyping(false);
-    }, 2000 + Math.random() * 2000);
-  };
-
-  const generateResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase();
-    
-    if (lowerMessage.includes('grupa') || lowerMessage.includes('grup')) {
-      return 'Zmiany grup są możliwe do końca dzisiejszego dnia. Wypełnij ankietę preferencji w aplikacji lub przyjdź do biura organizatorów. Pamiętaj, że miejsca w niektórych grupach są ograniczone.';
+  const handleStartSupport = async () => {
+    if (!isAuthenticated) {
+      alert('Musisz się zalogować aby korzystać z czatu');
+      return;
     }
-    
-    if (lowerMessage.includes('qr') || lowerMessage.includes('kod')) {
-      return 'Problemy z QR kodami można rozwiązać na kilka sposobów: 1) Sprawdź czy aparat jest wyraźny, 2) Upewnij się, że masz dostateczne oświetlenie, 3) Trzymaj telefon stabilnie. Jeśli nic nie pomaga, skontaktuj się z nami osobiście.';
-    }
-    
-    if (lowerMessage.includes('lokalizacja') || lowerMessage.includes('mapa')) {
-      return 'Wszystkie lokalizacje wydarzeń możesz znaleźć w sekcji "Lokalizacja" w aplikacji. Tam też jest mapa uczelni z zaznaczonymi salami. Jeśli się zgubisz, użyj funkcji "Poproś o pomoc".';
-    }
-    
-    if (lowerMessage.includes('pomoc') || lowerMessage.includes('help')) {
-      return 'Oczywiście pomożemy! Opisz dokładniej swój problem, a znajdziemy rozwiązanie. Możesz też skorzystać z przycisku SOS w nagłych przypadkach.';
-    }
-    
-    return 'Dziękuję za wiadomość! Sprawdzę to dla Ciebie i odpowiem wkrótce. W razie pilnych spraw możesz też skontaktować się z nami osobiście w biurze organizatorów.';
-  };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+    const chat = await startSupportChat();
+    if (chat) {
+      setSelectedChatId(chat.id);
+      loadHistory(chat.id);
+    } else {
+      alert('Nie udało się rozpocząć chatu z administratorem. Spróbuj ponownie.');
     }
   };
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedChatId && newMessage.trim() && hasAccessToChat(selectedChatId)) {
+      sendMessage(selectedChatId, newMessage);
+      setNewMessage('');
+    }
+  };
+
+  const selectChat = (chatId: number) => {
+    if (hasAccessToChat(chatId)) {
+      setSelectedChatId(chatId);
+      loadHistory(chatId);
+    }
+  };
+
+  const getChatAdmin = (chat: any) => {
+    // Znajdź administratora w tym chacie
+    const userA = allUsers.get(chat.userAId);
+    const userB = allUsers.get(chat.userBId);
+    
+    const userAIsAdmin = userA?.roles?.includes('admin');
+    const userBIsAdmin = userB?.roles?.includes('admin');
+    
+    if (userAIsAdmin && chat.userAId !== user?.id) {
+      return userA;
+    } else if (userBIsAdmin && chat.userBId !== user?.id) {
+      return userB;
+    }
+    return null;
+  };
+
+  const getLatestMessage = (chatId: number) => {
+    return chatMessages
+      .filter(m => m.chatId === chatId)
+      .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())[0];
+  };
+
+  // Jeśli nie zalogowany
+  if (!isAuthenticated) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+        <div className="text-center">
+          <ExclamationTriangleIcon className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Zaloguj się</h2>
+          <p className="text-gray-600">Musisz się zalogować aby korzystać z czatu z organizatorami.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="max-w-6xl mx-auto h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-4">
-        <div className="flex items-center space-x-3">
-          <div className="bg-blue-100 p-2 rounded-full">
-            <ChatBubbleLeftRightIcon className="h-6 w-6 text-blue-600" />
-          </div>
+      <div className="p-4 bg-white border-b border-gray-300 shadow-sm">
+        <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-lg font-semibold text-gray-900">Chat z Organizatorami</h1>
-            <p className="text-sm text-gray-500">Średni czas odpowiedzi: 2-5 min</p>
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <ChatBubbleLeftRightIcon className="h-6 w-6" />
+              Chat z Organizatorami
+            </h2>
+            <div className="text-sm text-gray-600">
+              {user?.firstName} {user?.surname}
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-400' : 'bg-red-400'}`}></div>
+              <span className="text-sm text-gray-600">{connected ? 'Połączony' : 'Rozłączony'}</span>
+            </div>
+            {!isAdmin && (
+              <button
+                onClick={handleStartSupport}
+                disabled={!connected}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 transition-colors flex items-center gap-2"
+              >
+                <PaperAirplaneIcon className="h-4 w-4" />
+                Nowy Chat
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-              message.sender === 'user'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-900 border border-gray-200'
-            }`}>
-              {message.sender === 'organizer' && (
-                <div className="flex items-center space-x-2 mb-1">
-                  <UserIcon className="h-3 w-3 text-gray-500" />
-                  <span className="text-xs text-gray-500 font-medium">{message.senderName}</span>
-                </div>
-              )}
-              
-              <p className="text-sm leading-relaxed">{message.content}</p>
-              
-              <div className={`flex items-center justify-end space-x-1 mt-1 ${
-                message.sender === 'user' ? 'text-blue-200' : 'text-gray-400'
-              }`}>
-                <ClockIcon className="h-3 w-3" />
-                <span className="text-xs">
-                  {format(message.timestamp, 'HH:mm')}
-                </span>
-                {message.sender === 'user' && (
-                  <CheckCircleIcon className="h-3 w-3" />
-                )}
-              </div>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Lista chatów (jeśli są) */}
+        {chats.length > 0 && (
+          <div className="w-1/3 bg-white border-r border-gray-300">
+            <div className="p-3 bg-gray-50 font-semibold text-sm text-gray-600 border-b">
+              {isAdmin ? `Wszystkie chaty (${chats.length})` : `Moje chaty (${chats.length})`}
             </div>
-          </div>
-        ))}
-        
-        {isTyping && (
-          <div className="flex justify-start">
-            <div className="max-w-xs lg:max-w-md px-4 py-2 rounded-lg bg-white border border-gray-200">
-              <div className="flex items-center space-x-2 mb-1">
-                <UserIcon className="h-3 w-3 text-gray-500" />
-                <span className="text-xs text-gray-500 font-medium">Organizator pisze...</span>
-              </div>
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-              </div>
+            <div className="overflow-y-auto">
+              {chats.map(chat => {
+                const admin = isAdmin ? null : getChatAdmin(chat);
+                const latestMessage = getLatestMessage(chat.id);
+                
+                return (
+                  <div
+                    key={chat.id}
+                    className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
+                      selectedChatId === chat.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                    }`}
+                    onClick={() => selectChat(chat.id)}
+                  >
+                    <div className="font-medium text-sm">
+                      {isAdmin ? 
+                        `Chat #${chat.id}` : 
+                        `Chat z: ${admin ? `${admin.firstName} ${admin.surname} 👑` : 'Organizatorem'}`
+                      }
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Chat ID: {chat.id}
+                    </div>
+                    {latestMessage && (
+                      <>
+                        <div className="text-xs text-gray-600 mt-1 truncate">
+                          {latestMessage.content}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          {new Date(latestMessage.sentAt).toLocaleTimeString()}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
-        
-        <div ref={messagesEndRef} />
-      </div>
 
-      {/* Message Input */}
-      <div className="bg-white border-t border-gray-200 p-4">
-        <div className="flex space-x-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Wpisz wiadomość..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-          />
-          <button
-            onClick={sendMessage}
-            disabled={!newMessage.trim()}
-            className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed btn-press"
-          >
-            <PaperAirplaneIcon className="h-5 w-5" />
-          </button>
-        </div>
-        
-        {/* Quick responses */}
-        <div className="flex flex-wrap gap-2 mt-3">
-          {[
-            'Mam problem z QR kodem',
-            'Jak zmienić grupę?',
-            'Gdzie się odbywa wydarzenie?',
-            'Potrzebuję pomocy'
-          ].map((quickResponse) => (
-            <button
-              key={quickResponse}
-              onClick={() => setNewMessage(quickResponse)}
-              className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors"
-            >
-              {quickResponse}
-            </button>
-          ))}
+        {/* Okno chatu */}
+        <div className="flex-1 flex flex-col">
+          {selectedChatId ? (
+            <>
+              <div className="p-4 bg-white border-b border-gray-300">
+                <h3 className="font-semibold text-gray-800">
+                  {isAdmin ? `Chat #${selectedChatId}` : `Chat z organizatorem #${selectedChatId}`}
+                </h3>
+              </div>
+
+              {/* Wiadomości */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+                {chatMessages
+                  .filter(msg => msg.chatId === selectedChatId)
+                  .sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime())
+                  .map((msg, index) => {
+                    const sender = allUsers.get(msg.senderId);
+                    const isMyMessage = msg.senderId === user?.id;
+                    const senderIsAdmin = sender?.roles?.includes('admin');
+                    
+                    return (
+                      <div key={index} className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg shadow-sm ${
+                          isMyMessage 
+                            ? 'bg-blue-500 text-white' 
+                            : 'bg-white text-gray-800 border border-gray-200'
+                        }`}>
+                          <div className="text-xs opacity-75 mb-1 font-medium">
+                            {isMyMessage ? 'Ty' : (senderIsAdmin ? '👑 Organizator' : 'Użytkownik')}
+                          </div>
+                          <div className="leading-relaxed">{msg.content}</div>
+                          <div className="text-xs opacity-75 mt-2">
+                            {new Date(msg.sentAt).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Formularz wysyłania */}
+              <form onSubmit={handleSendMessage} className="p-4 bg-white border-t border-gray-300">
+                <div className="flex gap-2">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder={isAdmin ? "Napisz wiadomość jako organizator..." : "Napisz wiadomość do organizatora..."}
+                    className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    disabled={!connected}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!connected || !newMessage.trim()}
+                    className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 transition-colors flex items-center gap-2"
+                  >
+                    <PaperAirplaneIcon className="h-4 w-4" />
+                    Wyślij
+                  </button>
+                </div>
+              </form>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-gray-500">
+              <div className="text-center">
+                <div className="text-6xl mb-4">💬</div>
+                <div className="text-lg mb-2">
+                  {isAdmin ? 'Panel Organizatora' : 'Chat z Organizatorami'}
+                </div>
+                <div className="mb-4">
+                  {chats.length === 0 ? 
+                    (isAdmin ? 'Brak aktywnych chatów' : 'Kliknij "Nowy Chat" aby rozpocząć') : 
+                    'Wybierz chat aby kontynuować konwersację'
+                  }
+                </div>
+                <div className="text-sm text-gray-400">
+                  {isAdmin ? 'Czekasz na wiadomości od użytkowników' : 'Organizatorzy są dostępni aby Ci pomóc'}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
