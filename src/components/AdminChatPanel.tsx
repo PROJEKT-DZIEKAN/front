@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useChat } from '@/hooks/useChat';
+import { useChat, type Chat } from '@/hooks/useChat';
 import { 
   PaperAirplaneIcon,
   ExclamationTriangleIcon

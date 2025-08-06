@@ -5,21 +5,21 @@ import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { useAuth } from './useAuth';
 
-interface Message {
+export interface Message {
   chatId: number;
   senderId: number;
   content: string;
   sentAt: string;
 }
 
-interface Chat {
+export interface Chat {
   id: number;
   userAId: number;
   userBId: number;
   createdAt: string;
 }
 
-interface User {
+export interface User {
   id: number;
   firstName: string;
   surname: string;
