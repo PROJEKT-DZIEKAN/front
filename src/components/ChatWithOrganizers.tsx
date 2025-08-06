@@ -13,7 +13,11 @@ import { useChat } from '@/hooks/useChat';
 // Używamy Message z useChat hook
 
 export default function ChatWithOrganizers() {
+  console.log('💬 ChatWithOrganizers component rendering...');
+  
   const { user, isAuthenticated, isAdmin } = useAuth();
+  console.log('💬 After useAuth:', { user: !!user, isAuthenticated, isAdmin });
+  
   const { 
     connected, 
     messages: chatMessages, 
@@ -24,8 +28,16 @@ export default function ChatWithOrganizers() {
     fetchChats, 
     fetchAllUsers,
     startSupportChat,
-    hasAccessToChat 
+    hasAccessToChat,
+    mockMode 
   } = useChat();
+  
+  console.log('💬 After useChat:', { 
+    connected, 
+    messagesCount: chatMessages.length, 
+    chatsCount: chats.length,
+    usersCount: allUsers.size 
+  });
   
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [newMessage, setNewMessage] = useState('');
@@ -48,17 +60,31 @@ export default function ChatWithOrganizers() {
   }, [chatMessages]);
 
   const handleStartSupport = async () => {
+    console.log('🆘 handleStartSupport clicked!', { isAuthenticated, connected });
+    
     if (!isAuthenticated) {
+      console.log('❌ User not authenticated');
       alert('Musisz się zalogować aby korzystać z czatu');
       return;
     }
 
+    if (!connected) {
+      console.log('❌ Not connected to WebSocket');
+      alert('Brak połączenia z serwerem. Sprawdź console.');
+      return;
+    }
+
+    console.log('🔄 Calling startSupportChat...');
     const chat = await startSupportChat();
+    console.log('📞 startSupportChat result:', chat);
+    
     if (chat) {
       setSelectedChatId(chat.id);
       loadHistory(chat.id);
+      console.log('✅ Chat started successfully:', chat.id);
     } else {
-      alert('Nie udało się rozpocząć chatu z administratorem. Spróbuj ponownie.');
+      console.log('❌ Failed to start chat');
+      alert('Nie udało się rozpocząć chatu z administratorem. Sprawdź console dla szczegółów.');
     }
   };
 
@@ -129,7 +155,15 @@ export default function ChatWithOrganizers() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-400' : 'bg-red-400'}`}></div>
-              <span className="text-sm text-gray-600">{connected ? 'Połączony' : 'Rozłączony'}</span>
+              <span className="text-sm text-gray-600">
+                {connected ? (mockMode ? 'Mock Mode' : 'Połączony') : 'Rozłączony z backendem'}
+              </span>
+              {mockMode && (
+                <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">DEMO</span>
+              )}
+              {!connected && !mockMode && (
+                <span className="text-xs text-gray-500">(sprawdź console)</span>
+              )}
             </div>
             {!isAdmin && (
               <button

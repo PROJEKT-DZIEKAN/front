@@ -6,8 +6,18 @@ import { useUser } from '@/context/UserContext';
 export const useAuth = () => {
   const context = useUser();
   
+  // Debug logging
+  console.log('🔑 useAuth debug:', {
+    token: !!context.token,
+    tokenLength: context.token?.length,
+    user: !!context.user,
+    userId: context.user?.id,
+    isAuthenticated: context.isAuthenticated,
+    isAdmin: context.isAdmin
+  });
+  
   return {
-    token: null, // Można dodać export tokenu z UserContext jeśli potrzeba
+    token: context.token, // Teraz poprawnie zwracam token z UserContext
     user: context.user,
     isAuthenticated: context.isAuthenticated,
     isAdmin: context.isAdmin,

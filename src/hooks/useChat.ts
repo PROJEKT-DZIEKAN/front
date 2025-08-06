@@ -36,52 +36,104 @@ export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [chats, setChats] = useState<Chat[]>([]);
   const [allUsers, setAllUsers] = useState<Map<number, User>>(new Map());
+  const [mockMode, setMockMode] = useState(false);
+
+  // Mock data dla fallback
+  const mockUsers = new Map<number, User>([
+    [1, { id: 1, firstName: 'Admin', surname: 'Główny', roles: ['admin'] }],
+    [2, { id: 2, firstName: 'Anna', surname: 'Kowalska', roles: ['admin'] }],
+    [3, { id: 3, firstName: 'Jan', surname: 'Nowak', roles: ['user'] }],
+    [4, { id: 4, firstName: 'Maria', surname: 'Wiśniewska', roles: ['user'] }],
+  ]);
+
+  const mockChatsData: Chat[] = [
+    { id: 1, userAId: 1, userBId: 3, createdAt: new Date().toISOString() },
+    { id: 2, userAId: 2, userBId: 4, createdAt: new Date().toISOString() },
+  ];
+
+  const enableMockMode = () => {
+    console.log('📱 Enabling mock mode...');
+    setMockMode(true);
+    setConnected(true);
+    setAllUsers(mockUsers);
+    setChats(mockChatsData);
+  };
 
   // Prawdziwe połączenie WebSocket
   useEffect(() => {
-    if (!user || !token) return;
+    console.log('useChat effect triggered:', { user: !!user, token: !!token, userId: user?.id });
+    
+    if (!user || !token) {
+      console.log('Missing user or token, not connecting to WebSocket');
+      return;
+    }
 
-    console.log('Connecting to WebSocket chat system...');
+    console.log('Connecting to WebSocket chat system...', { 
+      url: `${API_BASE_URL}/ws-chat?token=${token}`,
+      userId: user.id 
+    });
 
     const stompClient = new Client({
       webSocketFactory: () => new SockJS(`${API_BASE_URL}/ws-chat?token=${token}`),
       debug: (str) => console.log('STOMP:', str),
       onConnect: () => {
-        console.log('Connected to WebSocket');
+        console.log('✅ Connected to WebSocket successfully!');
         setConnected(true);
         
         // Subskrypcja na wiadomości
         stompClient.subscribe('/user/queue/messages', (message) => {
           const newMessage: Message = JSON.parse(message.body);
-          console.log('Received message:', newMessage);
+          console.log('📨 Received message:', newMessage);
           setMessages(prev => [...prev, newMessage]);
         });
 
         // Subskrypcja na historię
         stompClient.subscribe('/user/queue/history', (message) => {
           const history: Message[] = JSON.parse(message.body);
-          console.log('Received history:', history);
+          console.log('📜 Received history:', history);
           setMessages(history);
         });
       },
       onDisconnect: () => {
-        console.log('Disconnected from WebSocket');
+        console.log('❌ Disconnected from WebSocket');
         setConnected(false);
       },
       onStompError: (frame) => {
-        console.error('STOMP error:', frame);
+        console.error('🚨 STOMP connection error:', frame);
+        console.error('Error details:', {
+          command: frame.command,
+          headers: frame.headers,
+          body: frame.body
+        });
+        console.log('🔄 Falling back to mock mode...');
         setConnected(false);
+        enableMockMode();
+      },
+      onWebSocketError: (event) => {
+        console.error('🌐 WebSocket error:', event);
+        console.log('🔄 Falling back to mock mode...');
+        setConnected(false);
+        enableMockMode();
       }
     });
 
     stompClient.activate();
     setClient(stompClient);
 
+    // Timeout dla połączenia WebSocket - jeśli się nie połączy w 5 sekund, włącz mock mode
+    const timeout = setTimeout(() => {
+      if (!connected) {
+        console.log('⏰ WebSocket connection timeout - enabling mock mode');
+        enableMockMode();
+      }
+    }, 5000);
+
     return () => {
       console.log('Deactivating WebSocket connection...');
+      clearTimeout(timeout);
       stompClient.deactivate();
     };
-  }, [user, token]);
+  }, [user, token, connected]);
 
   // Pobieranie chatów z backendu
   const fetchChats = useCallback(async () => {
@@ -221,23 +273,97 @@ export const useChat = () => {
 
   // Rozpocznij chat z supportem (dla użytkowników)
   const startSupportChat = useCallback(async (): Promise<Chat | null> => {
+    console.log('🆘 Starting support chat...', { mockMode });
+    
+    if (mockMode) {
+      console.log('📱 Using mock mode for startSupportChat');
+      const admin = findAvailableAdmin();
+      if (!admin) {
+        console.error('❌ Brak dostępnych administratorów');
+        console.log('Available users:', Array.from(allUsers.entries()));
+        return null;
+      }
+
+      console.log('👑 Found admin:', admin);
+      // W mock mode tworzymy prosty chat
+      const newChat: Chat = {
+        id: Math.max(...chats.map(c => c.id), 0) + 1,
+        userAId: user!.id,
+        userBId: admin.id,
+        createdAt: new Date().toISOString()
+      };
+      
+      setChats(prev => [...prev, newChat]);
+      console.log('✅ Mock chat created:', newChat);
+      return newChat;
+    }
+    
     const admin = findAvailableAdmin();
     if (!admin) {
-      console.error('Brak dostępnych administratorów');
+      console.error('❌ Brak dostępnych administratorów');
+      console.log('Available users:', Array.from(allUsers.entries()));
       return null;
     }
 
+    console.log('👑 Found admin:', admin);
     return await getOrCreateChat(admin.id);
-  }, [findAvailableAdmin, getOrCreateChat]);
+  }, [findAvailableAdmin, getOrCreateChat, allUsers, mockMode, chats, user]);
 
   // Wysyłanie wiadomości przez WebSocket
   const sendMessage = useCallback((chatId: number, content: string) => {
-    if (!client || !connected || !user) {
-      console.error('WebSocket not connected or no user');
+    console.log('📤 Sending message:', { chatId, senderId: user?.id, content, mockMode });
+    
+    if (!user) {
+      console.error('No user');
       return;
     }
 
-    console.log('Sending message:', { chatId, senderId: user.id, content });
+    if (mockMode) {
+      // Mock mode - dodaj wiadomość lokalnie
+      const newMessage: Message = {
+        chatId,
+        senderId: user.id,
+        content,
+        sentAt: new Date().toISOString()
+      };
+      
+      setMessages(prev => [...prev, newMessage]);
+      console.log('📱 Mock message sent:', newMessage);
+      
+      // Symuluj odpowiedź administratora po 2 sekundach
+      if (!isAdmin) {
+        setTimeout(() => {
+          const admins = Array.from(allUsers.values()).filter(u => u.roles.includes('admin'));
+          const randomAdmin = admins[Math.floor(Math.random() * admins.length)];
+          
+          if (randomAdmin) {
+            const responses = [
+              'Dziękuję za wiadomość. Sprawdzam to dla Ciebie.',
+              'Rozumiem problem. Za chwilę się tym zajmę.',
+              'Czy możesz podać więcej szczegółów?',
+              'To częsty problem. Oto rozwiązanie...',
+              'Przekazuję to do odpowiedniego działu.',
+            ];
+            
+            const responseMessage: Message = {
+              chatId,
+              senderId: randomAdmin.id,
+              content: responses[Math.floor(Math.random() * responses.length)],
+              sentAt: new Date().toISOString()
+            };
+
+            setMessages(prev => [...prev, responseMessage]);
+            console.log('🤖 Mock admin response:', responseMessage);
+          }
+        }, 2000);
+      }
+      return;
+    }
+
+    if (!client || !connected) {
+      console.error('WebSocket not connected');
+      return;
+    }
 
     client.publish({
       destination: '/app/chat.send',
@@ -247,7 +373,7 @@ export const useChat = () => {
         content
       })
     });
-  }, [client, connected, user]);
+  }, [client, connected, user, mockMode, isAdmin, allUsers]);
 
   // Pobieranie historii wiadomości przez WebSocket
   const loadHistory = useCallback((chatId: number) => {
@@ -293,6 +419,7 @@ export const useChat = () => {
     startSupportChat,
     canChatWith,
     hasAccessToChat,
-    findAvailableAdmin
+    findAvailableAdmin,
+    mockMode
   };
 };
