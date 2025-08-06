@@ -325,11 +325,13 @@ export const useChat = () => {
     if (admins.length === 0) {
       console.log('🔄 No admins found by roles, trying fallback by User ID...');
       
-      // Założmy że User ID 1 i 2 to admini (z logów widzimy tych użytkowników)
-      const adminById = allUsersArray.find(u => u.id === 1 || u.id === 2);
+      // User ID 1 = ADMIN, User ID 2 = USER
+      const adminById = allUsersArray.find(u => u.id === 1);
       if (adminById) {
-        console.log('✅ Found admin by ID fallback:', adminById);
+        console.log('✅ Found admin by ID fallback (User ID 1):', adminById);
         return adminById;
+      } else {
+        console.log('❌ User ID 1 (admin) not found in allUsers');
       }
     }
     
