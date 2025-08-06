@@ -254,7 +254,7 @@ export const useChat = () => {
       roles: otherUser.roles
     });
 
-    const otherIsAdmin = otherUser.roles?.includes('admin') || otherUser.roles?.includes('ADMIN');
+    const otherIsAdmin = otherUser.roles?.includes('admin');
     
     console.log('🔐 Permission check:', {
       currentUserIsAdmin: isAdmin,
@@ -361,17 +361,8 @@ export const useChat = () => {
         fullUser: u
       });
       
-      // Sprawdź różne formaty ról
-      const hasAdminRole = u.roles?.includes('admin') || 
-                          u.roles?.includes('ADMIN') ||
-                          u.roles?.includes('Admin') ||
-                          // Może role są w obiekcie?
-                          u.roles?.some((role: string | { roleName?: string }) => 
-                            role === 'admin' || 
-                            role === 'ADMIN' || 
-                            (typeof role === 'object' && role?.roleName === 'admin') || 
-                            (typeof role === 'object' && role?.roleName === 'ADMIN')
-                          );
+      // Role są z małych liter
+      const hasAdminRole = u.roles?.includes('admin');
       
       console.log(`  → hasAdminRole: ${hasAdminRole}`);
       return hasAdminRole;
@@ -458,7 +449,7 @@ export const useChat = () => {
       // Symuluj odpowiedź administratora po 2 sekundach
       if (!isAdmin) {
         setTimeout(() => {
-          const admins = Array.from(allUsers.values()).filter(u => u.roles.includes('admin'));
+          const admins = Array.from(allUsers.values()).filter(u => u.roles?.includes('admin'));
           const randomAdmin = admins[Math.floor(Math.random() * admins.length)];
           
           if (randomAdmin) {
