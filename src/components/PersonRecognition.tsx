@@ -8,7 +8,6 @@ import {
   XCircleIcon,
   ExclamationCircleIcon,
   ArrowPathIcon,
-  ClockIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
 
@@ -260,10 +259,12 @@ export default function PersonRecognition() {
                 style={{ transform: 'scaleX(-1)' }} // Mirror effect
               />
               {capturedImage && (
-                <img 
-                  src={capturedImage}
-                  alt="Captured"
-                  className="absolute top-0 left-1/2 transform -translate-x-1/2 w-full max-w-md rounded-lg"
+                <div 
+                  className="absolute top-0 left-1/2 transform -translate-x-1/2 w-full max-w-md rounded-lg bg-cover bg-center"
+                  style={{ 
+                    backgroundImage: `url(${capturedImage})`,
+                    aspectRatio: '4/3'
+                  }}
                 />
               )}
             </div>

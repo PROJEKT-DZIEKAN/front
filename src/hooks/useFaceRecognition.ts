@@ -104,7 +104,7 @@ export const useFaceRecognition = () => {
   }, [checkHealth]);
 
   // Alternatywny endpoint dla zwykłego rozpoznawania (bez dodatkowych danych)
-  const recognizeFaceSimple = useCallback(async (file: File): Promise<any> => {
+  const recognizeFaceSimple = useCallback(async (file: File): Promise<RecognitionResult | null> => {
     setIsLoading(true);
     setError(null);
 
