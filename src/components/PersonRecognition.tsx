@@ -168,23 +168,63 @@ export default function PersonRecognition() {
     setError(null);
   };
 
-  // Podłączenie stream do video (uproszczona wersja)
+  // Podłączenie stream do video (STABILNA wersja)
   useEffect(() => {
     if (stream && videoRef.current && isCameraOpen) {
       console.log('🎥 Setting video srcObject...');
-      videoRef.current.srcObject = stream;
-      videoRef.current.play().catch(err => console.log('⚠️ Auto-play blocked:', err));
+      const video = videoRef.current;
+      
+      // Ustaw stream
+      video.srcObject = stream;
+      
+      // Dodaj event listeners dla stabilnego odtwarzania
+      const handleLoadedMetadata = () => {
+        console.log('📹 Video metadata loaded, starting playback...');
+        video.play().catch(err => {
+          console.log('⚠️ Auto-play blocked, retrying...', err);
+          // Retry po małym opóźnieniu
+          setTimeout(() => {
+            if (video.srcObject === stream) {
+              video.play().catch(console.error);
+            }
+          }, 100);
+        });
+      };
+
+      const handleCanPlay = () => {
+        console.log('▶️ Video can play, ensuring playback...');
+        if (video.paused) {
+          video.play().catch(console.error);
+        }
+      };
+
+      // Dodaj event listeners
+      video.addEventListener('loadedmetadata', handleLoadedMetadata);
+      video.addEventListener('canplay', handleCanPlay);
+      video.addEventListener('play', () => console.log('🎬 Video started playing'));
+      video.addEventListener('pause', () => console.log('⏸️ Video paused'));
+      video.addEventListener('ended', () => console.log('🏁 Video ended'));
+
+      return () => {
+        // Cleanup event listeners
+        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('play', () => {});
+        video.removeEventListener('pause', () => {});
+        video.removeEventListener('ended', () => {});
+      };
     }
   }, [stream, isCameraOpen]);
 
-  // Automatyczne uruchomienie skanowania gdy kamera się włączy
+  // Automatyczne uruchomienie skanowania gdy kamera się włączy (STABILNA wersja)
   useEffect(() => {
     if (isCameraOpen && !isScanning) {
-      // Małe opóźnienie żeby video się załadowało
+      // Dłuższe opóźnienie żeby video się w pełni załadowało
       const timer = setTimeout(() => {
+        console.log('🔍 Starting automatic scanning...');
         setIsScanning(true);
         intervalRef.current = setInterval(captureAndScan, 3000);
-      }, 1000);
+      }, 2000); // Zwiększone z 1s na 2s
       return () => clearTimeout(timer);
     }
   }, [isCameraOpen, isScanning, captureAndScan]);
@@ -225,14 +265,25 @@ export default function PersonRecognition() {
         <div className="text-center space-y-4">
           {isCameraOpen ? (
             <>
-              <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden max-w-md mx-auto">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                />
+                             <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden max-w-md mx-auto">
+                 {/* STABILNY video element - nie będzie się gubił */}
+                 <video
+                   ref={videoRef}
+                   autoPlay
+                   playsInline
+                   muted
+                   controls={false}
+                   className="w-full h-full object-cover"
+                   style={{ 
+                     transform: 'scaleX(-1)', // Mirror effect
+                     backgroundColor: '#000' // Czarny background
+                   }}
+                   onLoadedMetadata={() => console.log('📹 Video metadata loaded')}
+                   onCanPlay={() => console.log('▶️ Video can play')}
+                   onPlay={() => console.log('🎬 Video playing')}
+                   onPause={() => console.log('⏸️ Video paused')}
+                   onError={(e) => console.error('❌ Video error:', e)}
+                 />
 
                 {/* Ramka skanowania */}
                 <div className="absolute inset-0 border-2 border-blue-500 rounded-lg">
@@ -266,26 +317,42 @@ export default function PersonRecognition() {
                 )}
               </div>
 
-              {/* Przyciski kontrolne */}
-              <div className="flex space-x-2 justify-center">
-                <button 
-                  onClick={toggleScanning}
-                  disabled={isLoading}
-                  className={`px-4 py-2 text-white rounded-lg transition-colors disabled:bg-gray-400 ${
-                    isScanning 
-                      ? 'bg-red-600 hover:bg-red-700' 
-                      : 'bg-green-600 hover:bg-green-700'
-                  }`}
-                >
-                  {isScanning ? '⏹️ Zatrzymaj' : '🔍 Start'}
-                </button>
-                <button 
-                  onClick={stopCamera}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                >
-                  ❌ Wyłącz kamerę
-                </button>
-              </div>
+                             {/* Przyciski kontrolne */}
+               <div className="flex space-x-2 justify-center">
+                 <button 
+                   onClick={toggleScanning}
+                   disabled={isLoading}
+                   className={`px-4 py-2 text-white rounded-lg transition-colors disabled:bg-gray-400 ${
+                     isScanning 
+                       ? 'bg-red-600 hover:bg-red-700' 
+                       : 'bg-green-600 hover:bg-green-700'
+                   }`}
+                 >
+                   {isScanning ? '⏹️ Zatrzymaj' : '🔍 Start'}
+                 </button>
+                 
+                 {/* Debug button - ręczne uruchomienie video */}
+                 <button 
+                   onClick={() => {
+                     if (videoRef.current && stream) {
+                       console.log('🔧 Manual video restart...');
+                       videoRef.current.srcObject = stream;
+                       videoRef.current.play().catch(console.error);
+                     }
+                   }}
+                   className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+                   title="Ręcznie uruchom video jeśli nie działa"
+                 >
+                   🔧 Restart
+                 </button>
+                 
+                 <button 
+                   onClick={stopCamera}
+                   className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                 >
+                   ❌ Wyłącz kamerę
+                 </button>
+               </div>
             </>
           ) : (
             <>
