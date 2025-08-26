@@ -43,6 +43,8 @@ export default function PersonRecognition() {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanInterval, setScanInterval] = useState<NodeJS.Timeout | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -84,6 +86,7 @@ export default function PersonRecognition() {
   const startCamera = async () => {
     try {
       setError(null);
+      setIsCameraOpen(true);
       
       // Sprawdź czy przeglądarka wspiera getUserMedia
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -100,24 +103,49 @@ export default function PersonRecognition() {
       
       console.log('📹 Camera stream obtained:', mediaStream);
       setStream(mediaStream);
-      setIsCameraOpen(true);
+      
+      // Poczekaj na następny render cycle
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Ustaw stream na video element
+      if (videoRef.current) {
+        console.log('🎥 Setting video srcObject...');
+        videoRef.current.srcObject = mediaStream;
+        
+        try {
+          await videoRef.current.play();
+          console.log('✅ Video started playing');
+        } catch (playError) {
+          console.log('⚠️ Auto-play blocked, user interaction needed');
+        }
+      } else {
+        console.error('❌ Video ref not found after timeout');
+      }
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
       setError(`Nie można uzyskać dostępu do kamery: ${errorMessage}`);
       console.error('Błąd dostępu do kamery:', err);
+      setIsCameraOpen(false);
     }
   };
 
   // Zatrzymanie kamery
   const stopCamera = useCallback(() => {
+    // Zatrzymaj skanowanie
+    if (scanInterval) {
+      clearInterval(scanInterval);
+      setScanInterval(null);
+    }
+    setIsScanning(false);
+    
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
     }
     setIsCameraOpen(false);
     setCapturedImage(null);
-  }, [stream]);
+  }, [stream, scanInterval]);
 
   // Robienie zdjęcia
   const capturePhoto = () => {
@@ -135,6 +163,66 @@ export default function PersonRecognition() {
 
     const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
     setCapturedImage(imageDataUrl);
+  };
+
+  // Automatyczne skanowanie twarzy
+  const captureAndScan = async () => {
+    if (!videoRef.current || !canvasRef.current || isLoading) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    if (!context) return;
+
+    // Sprawdź czy video jest gotowe
+    if (video.videoWidth === 0 || video.videoHeight === 0) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0);
+
+    // Konwertuj na blob
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+
+      const file = new File([blob], 'scan.jpg', { type: 'image/jpeg' });
+      
+      try {
+        const recognition = await recognizeFace(file);
+        if (recognition && recognition.success && recognition.status === 'recognized') {
+          // Zatrzymaj skanowanie gdy znajdziemy twarz
+          setIsScanning(false);
+          if (scanInterval) {
+            clearInterval(scanInterval);
+            setScanInterval(null);
+          }
+          setResult(recognition);
+        }
+      } catch (err) {
+        console.log('Scan error:', err);
+      }
+    }, 'image/jpeg', 0.8);
+  };
+
+  // Start/Stop skanowania
+  const toggleScanning = () => {
+    if (isScanning) {
+      // Zatrzymaj skanowanie
+      if (scanInterval) {
+        clearInterval(scanInterval);
+        setScanInterval(null);
+      }
+      setIsScanning(false);
+    } else {
+      // Rozpocznij skanowanie
+      setError(null);
+      setResult(null);
+      setIsScanning(true);
+      
+      const interval = setInterval(captureAndScan, 2000); // Skanuj co 2 sekundy
+      setScanInterval(interval);
+    }
   };
 
   // Proces rozpoznawania ze zdjęcia
@@ -230,29 +318,7 @@ export default function PersonRecognition() {
     }
   }, [isCameraOpen]);
 
-  // Ustawienie stream na video element
-  useEffect(() => {
-    if (stream && isCameraOpen && videoRef.current) {
-      console.log('🎥 Setting video srcObject...');
-      videoRef.current.srcObject = stream;
-      
-      // Spróbuj uruchomić video
-      const playVideo = async () => {
-        try {
-          await videoRef.current!.play();
-          console.log('✅ Video started playing');
-        } catch (err) {
-          console.error('❌ Video play error:', err);
-          // Fallback - spróbuj ponownie
-          setTimeout(() => {
-            videoRef.current?.play().catch(console.error);
-          }, 500);
-        }
-      };
-      
-      playVideo();
-    }
-  }, [stream, isCameraOpen]);
+
 
   // Ikona statusu
   const getStatusIcon = (status: string) => {
@@ -310,24 +376,38 @@ export default function PersonRecognition() {
                   autoPlay
                   playsInline
                   muted
+                  controls={false}
                   className="w-full max-w-md mx-auto rounded-lg bg-black"
                   style={{ transform: 'scaleX(-1)' }} // Mirror effect
+                  onClick={() => {
+                    if (videoRef.current) {
+                      videoRef.current.play().catch(console.error);
+                    }
+                  }}
                 />
                 
                 {/* Ramka skanowania */}
                 <div className="absolute inset-0 max-w-md mx-auto">
                   <div className="relative w-full h-full">
                     {/* Górna ramka */}
-                    <div className="absolute top-0 left-0 w-8 h-8 border-l-4 border-t-4 border-blue-500"></div>
-                    <div className="absolute top-0 right-0 w-8 h-8 border-r-4 border-t-4 border-blue-500"></div>
+                    <div className={`absolute top-0 left-0 w-8 h-8 border-l-4 border-t-4 ${
+                      isScanning ? 'border-green-500' : 'border-blue-500'
+                    }`}></div>
+                    <div className={`absolute top-0 right-0 w-8 h-8 border-r-4 border-t-4 ${
+                      isScanning ? 'border-green-500' : 'border-blue-500'
+                    }`}></div>
                     
                     {/* Dolna ramka */}
-                    <div className="absolute bottom-0 left-0 w-8 h-8 border-l-4 border-b-4 border-blue-500"></div>
-                    <div className="absolute bottom-0 right-0 w-8 h-8 border-r-4 border-b-4 border-blue-500"></div>
+                    <div className={`absolute bottom-0 left-0 w-8 h-8 border-l-4 border-b-4 ${
+                      isScanning ? 'border-green-500' : 'border-blue-500'
+                    }`}></div>
+                    <div className={`absolute bottom-0 right-0 w-8 h-8 border-r-4 border-b-4 ${
+                      isScanning ? 'border-green-500' : 'border-blue-500'
+                    }`}></div>
                     
                     {/* Animowana linia skanowania */}
-                    {!capturedImage && (
-                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent animate-pulse"></div>
+                    {!capturedImage && isScanning && (
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-green-500 to-transparent animate-pulse"></div>
                     )}
                   </div>
                 </div>
@@ -354,9 +434,28 @@ export default function PersonRecognition() {
               
               {/* Instrukcje */}
               {!capturedImage && (
-                <div className="text-center text-sm text-gray-600 bg-blue-50 rounded-lg p-3">
-                  <p>🎯 Umieść twarz w ramce i kliknij &quot;Zrób zdjęcie&quot;</p>
-                  <p className="text-xs mt-1">Upewnij się, że twarz jest dobrze oświetlona i wyraźna</p>
+                <div className={`text-center text-sm rounded-lg p-3 ${
+                  isScanning 
+                    ? 'text-green-800 bg-green-50 border border-green-200' 
+                    : 'text-gray-600 bg-blue-50'
+                }`}>
+                  {isScanning ? (
+                    <>
+                      <p>🔍 Skanowanie twarzy w toku...</p>
+                      <p className="text-xs mt-1">Umieść twarz w ramce i poczekaj na rozpoznanie</p>
+                      <div className="mt-2 flex items-center justify-center space-x-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p>🎯 Umieść twarz w ramce i kliknij &quot;Rozpocznij skanowanie&quot;</p>
+                      <p className="text-xs mt-1">System automatycznie rozpozna osobę na podstawie bazy danych</p>
+                      <p className="text-xs mt-1 text-blue-600">💡 Jeśli kamera nie działa, kliknij na czarny obszar</p>
+                    </>
+                  )}
                 </div>
               )}
               
@@ -364,16 +463,29 @@ export default function PersonRecognition() {
                 {!capturedImage ? (
                   <>
                     <button 
-                      onClick={capturePhoto}
-                      className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                      onClick={toggleScanning}
+                      disabled={isLoading}
+                      className={`flex-1 text-white py-3 px-4 rounded-lg transition-colors disabled:bg-gray-400 ${
+                        isScanning 
+                          ? 'bg-red-600 hover:bg-red-700' 
+                          : 'bg-green-600 hover:bg-green-700'
+                      }`}
                     >
-                      Zrób zdjęcie
+                      {isScanning ? '⏹️ Zatrzymaj skanowanie' : '🔍 Rozpocznij skanowanie'}
+                    </button>
+                    <button 
+                      onClick={capturePhoto}
+                      disabled={isScanning || isLoading}
+                      className="px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+                      title="Zrób pojedyncze zdjęcie"
+                    >
+                      📸
                     </button>
                     <button 
                       onClick={stopCamera}
-                      className="flex-1 bg-gray-600 text-white py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors"
+                      className="px-4 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
                     >
-                      Anuluj
+                      ❌
                     </button>
                   </>
                 ) : (
