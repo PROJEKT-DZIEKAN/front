@@ -222,91 +222,127 @@ export default function PersonRecognition() {
       </div>
 
       {/* Kamera */}
-      {!isCameraOpen ? (
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="text-center space-y-4">
-            <div className="w-64 h-48 bg-gray-100 rounded-lg mx-auto flex items-center justify-center">
-              <CameraIcon className="h-16 w-16 text-gray-400" />
-            </div>
-            <div className="space-y-2">
-              <button 
-                onClick={startCamera}
-                disabled={isLoading}
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
-              >
-                Włącz kamerę
-              </button>
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isLoading}
-                className="w-full bg-gray-600 text-white py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors disabled:bg-gray-400"
-              >
-                <PhotoIcon className="h-5 w-5 inline mr-2" />
-                Prześlij zdjęcie
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="text-center space-y-4">
-            <div className="relative">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                className="w-full max-w-md mx-auto rounded-lg"
-                style={{ transform: 'scaleX(-1)' }} // Mirror effect
-              />
-              {capturedImage && (
-                <div 
-                  className="absolute top-0 left-1/2 transform -translate-x-1/2 w-full max-w-md rounded-lg bg-cover bg-center"
-                  style={{ 
-                    backgroundImage: `url(${capturedImage})`,
-                    aspectRatio: '4/3'
-                  }}
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+        <div className="text-center space-y-4">
+          {!isCameraOpen ? (
+            <>
+              <div className="w-64 h-48 bg-gray-100 rounded-lg mx-auto flex items-center justify-center">
+                <CameraIcon className="h-16 w-16 text-gray-400" />
+              </div>
+              <div className="space-y-2">
+                <button 
+                  onClick={startCamera}
+                  disabled={isLoading}
+                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+                >
+                  Włącz kamerę
+                </button>
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading}
+                  className="w-full bg-gray-600 text-white py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors disabled:bg-gray-400"
+                >
+                  <PhotoIcon className="h-5 w-5 inline mr-2" />
+                  Prześlij zdjęcie
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="relative">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full max-w-md mx-auto rounded-lg"
+                  style={{ transform: 'scaleX(-1)' }} // Mirror effect
                 />
+                
+                {/* Ramka skanowania */}
+                <div className="absolute inset-0 max-w-md mx-auto">
+                  <div className="relative w-full h-full">
+                    {/* Górna ramka */}
+                    <div className="absolute top-0 left-0 w-8 h-8 border-l-4 border-t-4 border-blue-500"></div>
+                    <div className="absolute top-0 right-0 w-8 h-8 border-r-4 border-t-4 border-blue-500"></div>
+                    
+                    {/* Dolna ramka */}
+                    <div className="absolute bottom-0 left-0 w-8 h-8 border-l-4 border-b-4 border-blue-500"></div>
+                    <div className="absolute bottom-0 right-0 w-8 h-8 border-r-4 border-b-4 border-blue-500"></div>
+                    
+                    {/* Animowana linia skanowania */}
+                    {!capturedImage && (
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent animate-pulse"></div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Złapane zdjęcie */}
+                {capturedImage && (
+                  <div 
+                    className="absolute top-0 left-1/2 transform -translate-x-1/2 w-full max-w-md rounded-lg bg-cover bg-center"
+                    style={{ 
+                      backgroundImage: `url(${capturedImage})`,
+                      aspectRatio: '4/3'
+                    }}
+                  >
+                    {/* Zielona ramka dla złapanego zdjęcia */}
+                    <div className="absolute inset-0">
+                      <div className="absolute top-0 left-0 w-8 h-8 border-l-4 border-t-4 border-green-500"></div>
+                      <div className="absolute top-0 right-0 w-8 h-8 border-r-4 border-t-4 border-green-500"></div>
+                      <div className="absolute bottom-0 left-0 w-8 h-8 border-l-4 border-b-4 border-green-500"></div>
+                      <div className="absolute bottom-0 right-0 w-8 h-8 border-r-4 border-b-4 border-green-500"></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Instrukcje */}
+              {!capturedImage && (
+                <div className="text-center text-sm text-gray-600 bg-blue-50 rounded-lg p-3">
+                  <p>🎯 Umieść twarz w ramce i kliknij &quot;Zrób zdjęcie&quot;</p>
+                  <p className="text-xs mt-1">Upewnij się, że twarz jest dobrze oświetlona i wyraźna</p>
+                </div>
               )}
-            </div>
-            
-            <div className="flex space-x-2">
-              {!capturedImage ? (
-                <>
-                  <button 
-                    onClick={capturePhoto}
-                    className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Zrób zdjęcie
-                  </button>
-                  <button 
-                    onClick={stopCamera}
-                    className="flex-1 bg-gray-600 text-white py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors"
-                  >
-                    Anuluj
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button 
-                    onClick={() => processImage('camera')}
-                    disabled={isLoading}
-                    className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400"
-                  >
-                    {isLoading ? 'Rozpoznaję...' : 'Rozpoznaj'}
-                  </button>
-                  <button 
-                    onClick={() => setCapturedImage(null)}
-                    disabled={isLoading}
-                    className="flex-1 bg-yellow-600 text-white py-3 px-4 rounded-lg hover:bg-yellow-700 transition-colors disabled:bg-gray-400"
-                  >
-                    Ponów
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
+              
+              <div className="flex space-x-2">
+                {!capturedImage ? (
+                  <>
+                    <button 
+                      onClick={capturePhoto}
+                      className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Zrób zdjęcie
+                    </button>
+                    <button 
+                      onClick={stopCamera}
+                      className="flex-1 bg-gray-600 text-white py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      Anuluj
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button 
+                      onClick={() => processImage('camera')}
+                      disabled={isLoading}
+                      className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400"
+                    >
+                      {isLoading ? 'Rozpoznaję...' : 'Rozpoznaj'}
+                    </button>
+                    <button 
+                      onClick={() => setCapturedImage(null)}
+                      disabled={isLoading}
+                      className="flex-1 bg-yellow-600 text-white py-3 px-4 rounded-lg hover:bg-yellow-700 transition-colors disabled:bg-gray-400"
+                    >
+                      Ponów
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Ukryty input dla plików */}
       <input
