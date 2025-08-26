@@ -25,12 +25,7 @@ interface RecognitionResult {
   };
 }
 
-interface ApiError {
-  success: boolean;
-  error: string;
-  message: string;
-  status: string;
-}
+
 
 const API_BASE_URL = 'https://duck-duck-production.up.railway.app';
 
