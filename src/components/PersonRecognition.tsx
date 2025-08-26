@@ -84,6 +84,12 @@ export default function PersonRecognition() {
   const startCamera = async () => {
     try {
       setError(null);
+      
+      // Sprawdź czy przeglądarka wspiera getUserMedia
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Twoja przeglądarka nie wspiera dostępu do kamery');
+      }
+      
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: 'user',
@@ -92,14 +98,39 @@ export default function PersonRecognition() {
         }
       });
       
+      console.log('📹 Camera stream obtained:', mediaStream);
       setStream(mediaStream);
       setIsCameraOpen(true);
       
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
+      // Dodaj małe opóźnienie żeby DOM się zaktualizował
+      setTimeout(() => {
+        if (videoRef.current) {
+          console.log('🎥 Setting video srcObject...');
+          videoRef.current.srcObject = mediaStream;
+          
+          // Spróbuj różne sposoby uruchomienia video
+          const playVideo = async () => {
+            try {
+              await videoRef.current!.play();
+              console.log('✅ Video started playing');
+            } catch (err) {
+              console.error('❌ Video play error:', err);
+              // Fallback - spróbuj ponownie
+              setTimeout(() => {
+                videoRef.current?.play().catch(console.error);
+              }, 500);
+            }
+          };
+          
+          playVideo();
+        } else {
+          console.error('❌ Video ref not found');
+        }
+      }, 100);
+      
     } catch (err) {
-      setError('Nie można uzyskać dostępu do kamery. Sprawdź uprawnienia.');
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      setError(`Nie można uzyskać dostępu do kamery: ${errorMessage}`);
       console.error('Błąd dostępu do kamery:', err);
     }
   };
@@ -199,6 +230,32 @@ export default function PersonRecognition() {
     };
   }, [stopCamera]);
 
+  // Event listener dla video
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      const handleLoadedMetadata = () => {
+        console.log('📹 Video metadata loaded:', {
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+          readyState: video.readyState
+        });
+      };
+
+      const handleCanPlay = () => {
+        console.log('▶️ Video can play');
+      };
+
+      video.addEventListener('loadedmetadata', handleLoadedMetadata);
+      video.addEventListener('canplay', handleCanPlay);
+
+      return () => {
+        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        video.removeEventListener('canplay', handleCanPlay);
+      };
+    }
+  }, [isCameraOpen]);
+
   // Ikona statusu
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -254,7 +311,8 @@ export default function PersonRecognition() {
                   ref={videoRef}
                   autoPlay
                   playsInline
-                  className="w-full max-w-md mx-auto rounded-lg"
+                  muted
+                  className="w-full max-w-md mx-auto rounded-lg bg-black"
                   style={{ transform: 'scaleX(-1)' }} // Mirror effect
                 />
                 
