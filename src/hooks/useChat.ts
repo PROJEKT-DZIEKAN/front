@@ -404,6 +404,21 @@ export const useChat = () => {
     return admins.length > 0 ? admins[0] : null;
   }, [isAdmin, allUsers]);
 
+  // Pobieranie historii wiadomości przez WebSocket
+  const loadHistory = useCallback((chatId: number) => {
+    if (!client || !connected) {
+      console.error('WebSocket not connected');
+      return;
+    }
+
+    console.log('Loading history for chat:', chatId);
+
+    client.publish({
+      destination: '/app/chat.history',
+      body: JSON.stringify({ id: chatId })
+    });
+  }, [client, connected]);
+
   // Rozpocznij chat z supportem (dla użytkowników)
   const startSupportChat = useCallback(async (): Promise<Chat | null> => {
     console.log('🆘 Starting support chat...', { mockMode });
@@ -448,7 +463,7 @@ export const useChat = () => {
     }
     
     return chat;
-  }, [findAvailableAdmin, getOrCreateChat, allUsers, mockMode, chats, user]);
+  }, [findAvailableAdmin, getOrCreateChat, allUsers, mockMode, chats, user, loadHistory]);
 
   // Wysyłanie wiadomości przez WebSocket
   const sendMessage = useCallback((chatId: number, content: string) => {
@@ -515,21 +530,6 @@ export const useChat = () => {
       })
     });
   }, [client, connected, user, mockMode, isAdmin, allUsers]);
-
-  // Pobieranie historii wiadomości przez WebSocket
-  const loadHistory = useCallback((chatId: number) => {
-    if (!client || !connected) {
-      console.error('WebSocket not connected');
-      return;
-    }
-
-    console.log('Loading history for chat:', chatId);
-
-    client.publish({
-      destination: '/app/chat.history',
-      body: JSON.stringify({ id: chatId })
-    });
-  }, [client, connected]);
 
   // Sprawdzenie czy użytkownik ma dostęp do chatu
   const hasAccessToChat = useCallback((chatId: number): boolean => {

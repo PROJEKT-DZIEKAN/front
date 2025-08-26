@@ -46,37 +46,7 @@ export default function PersonRecognition() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Funkcja do komunikacji z API
-  const recognizeFace = async (file: File): Promise<RecognitionResult> => {
-    const formData = new FormData();
-    formData.append('file', file);
 
-    const response = await fetch(`${API_BASE_URL}/camera/`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      if (response.status >= 500) {
-        const errorData: ApiError = await response.json();
-        throw new Error(errorData.message || 'Błąd serwera podczas przetwarzania zdjęcia');
-      } else {
-        throw new Error(`HTTP Error: ${response.status}`);
-      }
-    }
-
-    return await response.json();
-  };
-
-  // Sprawdzenie statusu API
-  const checkApiHealth = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/health`);
-      return response.ok;
-    } catch {
-      return false;
-    }
-  };
 
   // Inicjalizacja kamery (uproszczona wersja)
   const startCamera = async () => {
