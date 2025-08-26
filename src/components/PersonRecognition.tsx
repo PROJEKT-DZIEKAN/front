@@ -115,7 +115,7 @@ export default function PersonRecognition() {
         try {
           await videoRef.current.play();
           console.log('✅ Video started playing');
-        } catch (playError) {
+        } catch {
           console.log('⚠️ Auto-play blocked, user interaction needed');
         }
       } else {
