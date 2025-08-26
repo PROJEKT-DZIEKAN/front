@@ -86,7 +86,6 @@ export default function PersonRecognition() {
   const startCamera = async () => {
     try {
       setError(null);
-      setIsCameraOpen(true);
       
       // Sprawdź czy przeglądarka wspiera getUserMedia
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -103,24 +102,7 @@ export default function PersonRecognition() {
       
       console.log('📹 Camera stream obtained:', mediaStream);
       setStream(mediaStream);
-      
-      // Poczekaj na następny render cycle
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Ustaw stream na video element
-      if (videoRef.current) {
-        console.log('🎥 Setting video srcObject...');
-        videoRef.current.srcObject = mediaStream;
-        
-        try {
-          await videoRef.current.play();
-          console.log('✅ Video started playing');
-        } catch {
-          console.log('⚠️ Auto-play blocked, user interaction needed');
-        }
-      } else {
-        console.error('❌ Video ref not found after timeout');
-      }
+      setIsCameraOpen(true);
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
@@ -292,10 +274,15 @@ export default function PersonRecognition() {
     };
   }, [stopCamera]);
 
-  // Event listener dla video
+  // Automatyczne ustawienie video source gdy stream się zmieni
   useEffect(() => {
-    const video = videoRef.current;
-    if (video) {
+    if (stream && videoRef.current && isCameraOpen) {
+      console.log('🎥 Setting video srcObject automatically...');
+      videoRef.current.srcObject = stream;
+      
+      // Dodaj event listeners
+      const video = videoRef.current;
+      
       const handleLoadedMetadata = () => {
         console.log('📹 Video metadata loaded:', {
           videoWidth: video.videoWidth,
@@ -306,6 +293,10 @@ export default function PersonRecognition() {
 
       const handleCanPlay = () => {
         console.log('▶️ Video can play');
+        // Automatycznie odtwarzaj gdy jest gotowe
+        video.play().catch(err => {
+          console.log('⚠️ Auto-play blocked:', err);
+        });
       };
 
       video.addEventListener('loadedmetadata', handleLoadedMetadata);
@@ -316,7 +307,7 @@ export default function PersonRecognition() {
         video.removeEventListener('canplay', handleCanPlay);
       };
     }
-  }, [isCameraOpen]);
+  }, [stream, isCameraOpen]);
 
 
 
@@ -377,8 +368,8 @@ export default function PersonRecognition() {
                   playsInline
                   muted
                   controls={false}
-                  className="w-full max-w-md mx-auto rounded-lg bg-black"
-                  style={{ transform: 'scaleX(-1)' }} // Mirror effect
+                  className="w-full max-w-md mx-auto rounded-lg bg-black object-cover"
+                  style={{ transform: 'scaleX(-1)', aspectRatio: '4/3' }} // Mirror effect + fixed aspect ratio
                   onClick={() => {
                     if (videoRef.current) {
                       videoRef.current.play().catch(console.error);
