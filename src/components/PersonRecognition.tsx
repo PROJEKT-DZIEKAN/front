@@ -102,32 +102,6 @@ export default function PersonRecognition() {
       setStream(mediaStream);
       setIsCameraOpen(true);
       
-      // Dodaj małe opóźnienie żeby DOM się zaktualizował
-      setTimeout(() => {
-        if (videoRef.current) {
-          console.log('🎥 Setting video srcObject...');
-          videoRef.current.srcObject = mediaStream;
-          
-          // Spróbuj różne sposoby uruchomienia video
-          const playVideo = async () => {
-            try {
-              await videoRef.current!.play();
-              console.log('✅ Video started playing');
-            } catch (err) {
-              console.error('❌ Video play error:', err);
-              // Fallback - spróbuj ponownie
-              setTimeout(() => {
-                videoRef.current?.play().catch(console.error);
-              }, 500);
-            }
-          };
-          
-          playVideo();
-        } else {
-          console.error('❌ Video ref not found');
-        }
-      }, 100);
-      
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
       setError(`Nie można uzyskać dostępu do kamery: ${errorMessage}`);
@@ -255,6 +229,30 @@ export default function PersonRecognition() {
       };
     }
   }, [isCameraOpen]);
+
+  // Ustawienie stream na video element
+  useEffect(() => {
+    if (stream && isCameraOpen && videoRef.current) {
+      console.log('🎥 Setting video srcObject...');
+      videoRef.current.srcObject = stream;
+      
+      // Spróbuj uruchomić video
+      const playVideo = async () => {
+        try {
+          await videoRef.current!.play();
+          console.log('✅ Video started playing');
+        } catch (err) {
+          console.error('❌ Video play error:', err);
+          // Fallback - spróbuj ponownie
+          setTimeout(() => {
+            videoRef.current?.play().catch(console.error);
+          }, 500);
+        }
+      };
+      
+      playVideo();
+    }
+  }, [stream, isCameraOpen]);
 
   // Ikona statusu
   const getStatusIcon = (status: string) => {
