@@ -168,33 +168,49 @@ export default function PersonRecognition() {
     setError(null);
   };
 
-  // Podłączenie stream do video (STABILNA wersja)
+  // Podłączenie stream do video (NAPRAWIONA wersja)
   useEffect(() => {
+    console.log('🎥 useEffect triggered - stream:', !!stream, 'videoRef:', !!videoRef.current, 'isCameraOpen:', isCameraOpen);
+    
     if (stream && videoRef.current && isCameraOpen) {
-      console.log('🎥 Setting video srcObject...');
       const video = videoRef.current;
+      console.log('🎥 Setting video srcObject...');
       
       // Ustaw stream
       video.srcObject = stream;
       
+      // FORCE PLAY - nie czekaj na eventy!
+      const forcePlay = async () => {
+        try {
+          console.log('🎬 Force playing video...');
+          await video.play();
+          console.log('✅ Video playing successfully!');
+        } catch (err) {
+          console.log('⚠️ Auto-play blocked, retrying...', err);
+          // Retry po małym opóźnieniu
+          setTimeout(async () => {
+            if (video.srcObject === stream) {
+              try {
+                await video.play();
+                console.log('✅ Video playing after retry!');
+              } catch (retryErr) {
+                console.error('❌ Video play failed after retry:', retryErr);
+              }
+            }
+          }, 500);
+        }
+      };
+
       // Dodaj event listeners dla stabilnego odtwarzania
       const handleLoadedMetadata = () => {
         console.log('📹 Video metadata loaded, starting playback...');
-        video.play().catch(err => {
-          console.log('⚠️ Auto-play blocked, retrying...', err);
-          // Retry po małym opóźnieniu
-          setTimeout(() => {
-            if (video.srcObject === stream) {
-              video.play().catch(console.error);
-            }
-          }, 100);
-        });
+        forcePlay();
       };
 
       const handleCanPlay = () => {
         console.log('▶️ Video can play, ensuring playback...');
         if (video.paused) {
-          video.play().catch(console.error);
+          forcePlay();
         }
       };
 
@@ -204,6 +220,14 @@ export default function PersonRecognition() {
       video.addEventListener('play', () => console.log('🎬 Video started playing'));
       video.addEventListener('pause', () => console.log('⏸️ Video paused'));
       video.addEventListener('ended', () => console.log('🏁 Video ended'));
+
+      // FORCE PLAY po małym opóźnieniu
+      setTimeout(() => {
+        if (video.srcObject === stream && video.paused) {
+          console.log('⏰ Force play after timeout...');
+          forcePlay();
+        }
+      }, 1000);
 
       return () => {
         // Cleanup event listeners
@@ -266,8 +290,9 @@ export default function PersonRecognition() {
           {isCameraOpen ? (
             <>
                              <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden max-w-md mx-auto">
-                 {/* STABILNY video element - nie będzie się gubił */}
+                 {/* STABILNY video element z KEY - NIE ZNIKNIE! */}
                  <video
+                   key={`video-${isCameraOpen ? 'active' : 'inactive'}`}
                    ref={videoRef}
                    autoPlay
                    playsInline
@@ -276,7 +301,9 @@ export default function PersonRecognition() {
                    className="w-full h-full object-cover"
                    style={{ 
                      transform: 'scaleX(-1)', // Mirror effect
-                     backgroundColor: '#000' // Czarny background
+                     backgroundColor: '#000', // Czarny background
+                     minHeight: '100%',
+                     minWidth: '100%'
                    }}
                    onLoadedMetadata={() => console.log('📹 Video metadata loaded')}
                    onCanPlay={() => console.log('▶️ Video can play')}
@@ -304,18 +331,26 @@ export default function PersonRecognition() {
                 )}
               </div>
 
-              {/* Status */}
-              <div className={`text-center text-sm rounded-lg p-3 ${
-                isScanning 
-                  ? 'text-green-800 bg-green-50 border border-green-200' 
-                  : 'text-gray-600 bg-blue-50'
-              }`}>
-                {isScanning ? (
-                  <p>🔍 Automatyczne skanowanie co 3 sekundy...</p>
-                ) : (
-                  <p>📷 Kamera gotowa do skanowania</p>
-                )}
-              </div>
+                             {/* Status */}
+               <div className={`text-center text-sm rounded-lg p-3 ${
+                 isScanning 
+                   ? 'text-green-800 bg-green-50 border border-green-200' 
+                   : 'text-gray-600 bg-blue-50'
+               }`}>
+                 {isScanning ? (
+                   <p>🔍 Automatyczne skanowanie co 3 sekundy...</p>
+                 ) : (
+                   <p>📷 Kamera gotowa do skanowania</p>
+                 )}
+                 
+                 {/* DEBUG INFO */}
+                 <div className="mt-2 text-xs text-gray-500">
+                   <p>Stream: {stream ? '✅' : '❌'}</p>
+                   <p>Video Ref: {videoRef.current ? '✅' : '❌'}</p>
+                   <p>Video Playing: {videoRef.current?.paused === false ? '✅' : '❌'}</p>
+                   <p>Video Src: {videoRef.current?.srcObject ? '✅' : '❌'}</p>
+                 </div>
+               </div>
 
                              {/* Przyciski kontrolne */}
                <div className="flex space-x-2 justify-center">
