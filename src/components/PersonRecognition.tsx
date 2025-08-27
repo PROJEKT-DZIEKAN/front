@@ -3,9 +3,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { 
   CameraIcon, 
+  PhotoIcon, 
   CheckCircleIcon, 
   XCircleIcon,
   ExclamationCircleIcon,
+  ArrowPathIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
 
@@ -25,7 +27,12 @@ interface RecognitionResult {
   };
 }
 
-
+interface ApiError {
+  success: boolean;
+  error: string;
+  message: string;
+  status: string;
+}
 
 const API_BASE_URL = 'https://duck-duck-production.up.railway.app';
 
@@ -34,24 +41,49 @@ export default function PersonRecognition() {
   const [result, setResult] = useState<RecognitionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Funkcja do komunikacji z API
+  const recognizeFace = async (file: File): Promise<RecognitionResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
 
+    const response = await fetch(`${API_BASE_URL}/camera/`, {
+      method: 'POST',
+      body: formData,
+    });
 
-  // Inicjalizacja kamery (uproszczona wersja)
+    if (!response.ok) {
+      if (response.status >= 500) {
+        const errorData: ApiError = await response.json();
+        throw new Error(errorData.message || 'Błąd serwera podczas przetwarzania zdjęcia');
+      } else {
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+    }
+
+    return await response.json();
+  };
+
+  // Sprawdzenie statusu API
+  const checkApiHealth = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/health`);
+      return response.ok;
+    } catch {
+      return false;
+    }
+  };
+
+  // Inicjalizacja kamery
   const startCamera = async () => {
     try {
       setError(null);
-      
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Twoja przeglądarka nie wspiera dostępu do kamery');
-      }
-      
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: 'user',
@@ -60,105 +92,96 @@ export default function PersonRecognition() {
         }
       });
       
-      console.log('📹 Camera stream obtained:', mediaStream);
       setStream(mediaStream);
       setIsCameraOpen(true);
       
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
-      setError(`Nie można uzyskać dostępu do kamery: ${errorMessage}`);
+      setError('Nie można uzyskać dostępu do kamery. Sprawdź uprawnienia.');
       console.error('Błąd dostępu do kamery:', err);
-      setIsCameraOpen(false);
     }
   };
 
   // Zatrzymanie kamery
   const stopCamera = useCallback(() => {
-    // Zatrzymaj skanowanie
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    setIsScanning(false);
-    
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
     }
     setIsCameraOpen(false);
+    setCapturedImage(null);
   }, [stream]);
 
+  // Robienie zdjęcia
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
 
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
 
-  // Automatyczne skanowanie twarzy (uproszczona wersja)
-  const captureAndScan = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || isLoading) return;
+    if (!context) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0);
+
+    const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    setCapturedImage(imageDataUrl);
+  };
+
+  // Proces rozpoznawania ze zdjęcia
+  const processImage = async (imageSource: 'camera' | 'file', file?: File) => {
+    setIsLoading(true);
+    setError(null);
+    setResult(null);
 
     try {
-      setIsLoading(true);
-      setError(null);
+      // Sprawdź połączenie z API
+      const isApiHealthy = await checkApiHealth();
+      if (!isApiHealthy) {
+        throw new Error('Serwer rozpoznawania twarzy jest niedostępny. Spróbuj ponownie później.');
+      }
 
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      let fileToProcess: File;
 
-      // Sprawdź czy video jest gotowe
-      if (video.videoWidth === 0 || video.videoHeight === 0) return;
+      if (imageSource === 'camera' && capturedImage) {
+        // Konwertuj zdjęcie z kamery na File
+        const response = await fetch(capturedImage);
+        const blob = await response.blob();
+        fileToProcess = new File([blob], 'camera_photo.jpg', { type: 'image/jpeg' });
+      } else if (imageSource === 'file' && file) {
+        fileToProcess = file;
+      } else {
+        throw new Error('Brak zdjęcia do przetworzenia');
+      }
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const recognition = await recognizeFace(fileToProcess);
+      setResult(recognition);
 
-      // Konwertuj do blob
-      const blob = await new Promise<Blob | null>(resolve =>
-        canvas.toBlob(resolve, 'image/jpeg', 0.8)
-      );
-      if (!blob) throw new Error('Nie udało się pobrać obrazu z kamery');
-
-      const formData = new FormData();
-      formData.append('file', blob, 'capture.jpg');
-
-      const response = await fetch(`${API_BASE_URL}/camera/`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error('Błąd rozpoznawania');
-      const recognition = await response.json();
-
-      if (recognition.success && recognition.status === 'recognized') {
-        setResult(recognition);
-        setIsScanning(false);
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
+      if (recognition.success && imageSource === 'camera') {
+        stopCamera();
       }
     } catch (err) {
-      console.error('Scan error:', err);
-      setError('Błąd podczas rozpoznawania');
+      const errorMessage = err instanceof Error ? err.message : 'Wystąpił nieoczekiwany błąd';
+      setError(errorMessage);
+      console.error('Błąd rozpoznawania:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading]);
+  };
 
-  // Start/Stop skanowania
-  const toggleScanning = () => {
-    if (isScanning) {
-      // Zatrzymaj skanowanie
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
+  // Upload pliku
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        setError('Można przesłać tylko pliki obrazów.');
+        return;
       }
-      setIsScanning(false);
-    } else {
-      // Rozpocznij skanowanie
-      setError(null);
-      setResult(null);
-      setIsScanning(true);
-      
-      intervalRef.current = setInterval(captureAndScan, 3000); // Skanuj co 3 sekundy
+      processImage('file', file);
     }
   };
 
@@ -166,92 +189,8 @@ export default function PersonRecognition() {
   const clearResults = () => {
     setResult(null);
     setError(null);
+    setCapturedImage(null);
   };
-
-  // Podłączenie stream do video (NAPRAWIONA wersja)
-  useEffect(() => {
-    console.log('🎥 useEffect triggered - stream:', !!stream, 'videoRef:', !!videoRef.current, 'isCameraOpen:', isCameraOpen);
-    
-    if (stream && videoRef.current && isCameraOpen) {
-      const video = videoRef.current;
-      console.log('🎥 Setting video srcObject...');
-      
-      // Ustaw stream
-      video.srcObject = stream;
-      
-      // FORCE PLAY - nie czekaj na eventy!
-      const forcePlay = async () => {
-        try {
-          console.log('🎬 Force playing video...');
-          await video.play();
-          console.log('✅ Video playing successfully!');
-        } catch (err) {
-          console.log('⚠️ Auto-play blocked, retrying...', err);
-          // Retry po małym opóźnieniu
-          setTimeout(async () => {
-            if (video.srcObject === stream) {
-              try {
-                await video.play();
-                console.log('✅ Video playing after retry!');
-              } catch (retryErr) {
-                console.error('❌ Video play failed after retry:', retryErr);
-              }
-            }
-          }, 500);
-        }
-      };
-
-      // Dodaj event listeners dla stabilnego odtwarzania
-      const handleLoadedMetadata = () => {
-        console.log('📹 Video metadata loaded, starting playback...');
-        forcePlay();
-      };
-
-      const handleCanPlay = () => {
-        console.log('▶️ Video can play, ensuring playback...');
-        if (video.paused) {
-          forcePlay();
-        }
-      };
-
-      // Dodaj event listeners
-      video.addEventListener('loadedmetadata', handleLoadedMetadata);
-      video.addEventListener('canplay', handleCanPlay);
-      video.addEventListener('play', () => console.log('🎬 Video started playing'));
-      video.addEventListener('pause', () => console.log('⏸️ Video paused'));
-      video.addEventListener('ended', () => console.log('🏁 Video ended'));
-
-      // FORCE PLAY po małym opóźnieniu
-      setTimeout(() => {
-        if (video.srcObject === stream && video.paused) {
-          console.log('⏰ Force play after timeout...');
-          forcePlay();
-        }
-      }, 1000);
-
-      return () => {
-        // Cleanup event listeners
-        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-        video.removeEventListener('canplay', handleCanPlay);
-        video.removeEventListener('play', () => {});
-        video.removeEventListener('pause', () => {});
-        video.removeEventListener('ended', () => {});
-      };
-    }
-  }, [stream, isCameraOpen]);
-
-  // Automatyczne uruchomienie skanowania gdy kamera się włączy (STABILNA wersja)
-  useEffect(() => {
-    if (isCameraOpen && !isScanning) {
-      // Dłuższe opóźnienie żeby video się w pełni załadowało
-      const timer = setTimeout(() => {
-        console.log('🔍 Starting automatic scanning...');
-        setIsScanning(true);
-        intervalRef.current = setInterval(captureAndScan, 3000);
-      }, 2000); // Zwiększone z 1s na 2s
-      return () => clearTimeout(timer);
-    }
-  }, [isCameraOpen, isScanning, captureAndScan]);
 
   // Cleanup przy odmontowaniu komponentu
   useEffect(() => {
@@ -259,8 +198,6 @@ export default function PersonRecognition() {
       stopCamera();
     };
   }, [stopCamera]);
-
-
 
   // Ikona statusu
   const getStatusIcon = (status: string) => {
@@ -285,129 +222,116 @@ export default function PersonRecognition() {
       </div>
 
       {/* Kamera */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <div className="text-center space-y-4">
-          {isCameraOpen ? (
-            <>
-                             <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden max-w-md mx-auto">
-                 {/* STABILNY video element z KEY - NIE ZNIKNIE! */}
-                 <video
-                   key={`video-${isCameraOpen ? 'active' : 'inactive'}`}
-                   ref={videoRef}
-                   autoPlay
-                   playsInline
-                   muted
-                   controls={false}
-                   className="w-full h-full object-cover"
-                   style={{ 
-                     transform: 'scaleX(-1)', // Mirror effect
-                     backgroundColor: '#000', // Czarny background
-                     minHeight: '100%',
-                     minWidth: '100%'
-                   }}
-                   onLoadedMetadata={() => console.log('📹 Video metadata loaded')}
-                   onCanPlay={() => console.log('▶️ Video can play')}
-                   onPlay={() => console.log('🎬 Video playing')}
-                   onPause={() => console.log('⏸️ Video paused')}
-                   onError={(e) => console.error('❌ Video error:', e)}
-                 />
-
-                {/* Ramka skanowania */}
-                <div className="absolute inset-0 border-2 border-blue-500 rounded-lg">
-                  <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-blue-500"></div>
-                  <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-blue-500"></div>
-                  <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-blue-500"></div>
-                  <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-blue-500"></div>
-                </div>
-
-                {/* Loading overlay */}
-                {isLoading && (
-                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                    <div className="text-white text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
-                      <p className="text-sm">Przetwarzanie...</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-                             {/* Status */}
-               <div className={`text-center text-sm rounded-lg p-3 ${
-                 isScanning 
-                   ? 'text-green-800 bg-green-50 border border-green-200' 
-                   : 'text-gray-600 bg-blue-50'
-               }`}>
-                 {isScanning ? (
-                   <p>🔍 Automatyczne skanowanie co 3 sekundy...</p>
-                 ) : (
-                   <p>📷 Kamera gotowa do skanowania</p>
-                 )}
-                 
-                 {/* DEBUG INFO */}
-                 <div className="mt-2 text-xs text-gray-500">
-                   <p>Stream: {stream ? '✅' : '❌'}</p>
-                   <p>Video Ref: {videoRef.current ? '✅' : '❌'}</p>
-                   <p>Video Playing: {videoRef.current?.paused === false ? '✅' : '❌'}</p>
-                   <p>Video Src: {videoRef.current?.srcObject ? '✅' : '❌'}</p>
-                 </div>
-               </div>
-
-                             {/* Przyciski kontrolne */}
-               <div className="flex space-x-2 justify-center">
-                 <button 
-                   onClick={toggleScanning}
-                   disabled={isLoading}
-                   className={`px-4 py-2 text-white rounded-lg transition-colors disabled:bg-gray-400 ${
-                     isScanning 
-                       ? 'bg-red-600 hover:bg-red-700' 
-                       : 'bg-green-600 hover:bg-green-700'
-                   }`}
-                 >
-                   {isScanning ? '⏹️ Zatrzymaj' : '🔍 Start'}
-                 </button>
-                 
-                 {/* Debug button - ręczne uruchomienie video */}
-                 <button 
-                   onClick={() => {
-                     if (videoRef.current && stream) {
-                       console.log('🔧 Manual video restart...');
-                       videoRef.current.srcObject = stream;
-                       videoRef.current.play().catch(console.error);
-                     }
-                   }}
-                   className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
-                   title="Ręcznie uruchom video jeśli nie działa"
-                 >
-                   🔧 Restart
-                 </button>
-                 
-                 <button 
-                   onClick={stopCamera}
-                   className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                 >
-                   ❌ Wyłącz kamerę
-                 </button>
-               </div>
-            </>
-          ) : (
-            <>
-              <div className="w-64 h-48 bg-gray-100 rounded-lg mx-auto flex items-center justify-center">
-                <CameraIcon className="h-16 w-16 text-gray-400" />
-              </div>
+      {!isCameraOpen ? (
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="text-center space-y-4">
+            <div className="w-64 h-48 bg-gray-100 rounded-lg mx-auto flex items-center justify-center">
+              <CameraIcon className="h-16 w-16 text-gray-400" />
+            </div>
+            <div className="space-y-2">
               <button 
                 onClick={startCamera}
                 disabled={isLoading}
                 className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
               >
-                📷 Włącz kamerę
+                Włącz kamerę
               </button>
-            </>
-          )}
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                className="w-full bg-gray-600 text-white py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors disabled:bg-gray-400"
+              >
+                <PhotoIcon className="h-5 w-5 inline mr-2" />
+                Prześlij zdjęcie
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="text-center space-y-4">
+            <div className="relative">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className="w-full max-w-md mx-auto rounded-lg"
+                style={{ transform: 'scaleX(-1)' }} // Mirror effect
+              />
+              {capturedImage && (
+                <div 
+                  className="absolute top-0 left-1/2 transform -translate-x-1/2 w-full max-w-md rounded-lg bg-cover bg-center"
+                  style={{ 
+                    backgroundImage: `url(${capturedImage})`,
+                    aspectRatio: '4/3'
+                  }}
+                />
+              )}
+            </div>
+            
+            <div className="flex space-x-2">
+              {!capturedImage ? (
+                <>
+                  <button 
+                    onClick={capturePhoto}
+                    className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Zrób zdjęcie
+                  </button>
+                  <button 
+                    onClick={stopCamera}
+                    className="flex-1 bg-gray-600 text-white py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    Anuluj
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button 
+                    onClick={() => processImage('camera')}
+                    disabled={isLoading}
+                    className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400"
+                  >
+                    {isLoading ? 'Rozpoznaję...' : 'Rozpoznaj'}
+                  </button>
+                  <button 
+                    onClick={() => setCapturedImage(null)}
+                    disabled={isLoading}
+                    className="flex-1 bg-yellow-600 text-white py-3 px-4 rounded-lg hover:bg-yellow-700 transition-colors disabled:bg-gray-400"
+                  >
+                    Ponów
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ukryty input dla plików */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        accept="image/*"
+        className="hidden"
+      />
 
       {/* Canvas do przetwarzania zdjęć */}
       <canvas ref={canvasRef} className="hidden" />
+
+      {/* Loading */}
+      {isLoading && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-center space-x-3">
+            <ArrowPathIcon className="h-6 w-6 text-blue-600 animate-spin" />
+            <div>
+              <h3 className="font-medium text-blue-800">Przetwarzanie...</h3>
+              <p className="text-sm text-blue-700">Rozpoznaję osobę na zdjęciu</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Błąd */}
       {error && (
