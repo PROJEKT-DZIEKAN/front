@@ -43,6 +43,7 @@ export default function PersonRecognition() {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [debug, setDebug] = useState<string>('');
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -84,6 +85,7 @@ export default function PersonRecognition() {
   const startCamera = async () => {
     try {
       setError(null);
+      setDebug('Requesting camera...');
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: 'user',
@@ -108,22 +110,35 @@ export default function PersonRecognition() {
   useEffect(() => {
     if (!isCameraOpen || !stream || !videoRef.current) return;
     const video = videoRef.current;
-    video.srcObject = stream;
-    video.muted = true;
-    const tryPlay = async () => {
+    const attach = async () => {
       try {
-        await video.play();
+        setDebug('Attaching stream to video...');
+        video.setAttribute('playsinline', 'true');
+        video.muted = true;
+        video.srcObject = stream;
+        if (video.readyState >= 1) {
+          await video.play();
+        } else {
+          video.onloadedmetadata = async () => {
+            try {
+              await video.play();
+            } catch {}
+          };
+        }
       } catch {
-        // Ciche niepowodzenie – część przeglądarek wymaga dodatkowej interakcji użytkownika
+        // ignore
       }
     };
-    if (video.readyState >= 1) {
-      void tryPlay();
-    } else {
-      video.onloadedmetadata = () => {
-        void tryPlay();
-      };
-    }
+    void attach();
+
+    // Fallback retry if first play did not render frames
+    const retryTimer = setTimeout(() => {
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        setDebug('Retry binding stream...');
+        void attach();
+      }
+    }, 1200);
+    return () => clearTimeout(retryTimer);
   }, [isCameraOpen, stream]);
 
   // Zatrzymanie kamery
@@ -244,6 +259,9 @@ export default function PersonRecognition() {
         <CameraIcon className="h-12 w-12 text-blue-500 mx-auto mb-4" />
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Rozpoznawanie Osób</h1>
         <p className="text-gray-600">Zrób zdjęcie lub prześlij plik aby rozpoznać osobę</p>
+        {process.env.NODE_ENV !== 'production' && debug && (
+          <p className="mt-1 text-xs text-gray-400">{debug}</p>
+        )}
       </div>
 
       {/* Kamera */}
