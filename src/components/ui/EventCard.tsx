@@ -44,7 +44,7 @@ export default function EventCard({
     }
   };
 
-  const getCategoryIcon = (category: string) => {
+  const getCategoryIcon = (category?: string) => {
     switch (category) {
       case 'presentation': return CalendarIcon;
       case 'workshop': return UserGroupIcon;
@@ -54,7 +54,7 @@ export default function EventCard({
     }
   };
 
-  const getCategoryColor = (category: string) => {
+  const getCategoryColor = (category?: string) => {
     switch (category) {
       case 'presentation': return 'bg-blue-500';
       case 'workshop': return 'bg-green-500';
@@ -122,7 +122,7 @@ export default function EventCard({
             <MapPinIcon className="h-4 w-4 mr-2" />
             <span>{event.location}</span>
           </div>
-          {event.maxParticipants && (
+          {event.maxParticipants && event.currentParticipants !== undefined && (
             <div className="flex items-center text-sm text-gray-600">
               <UserGroupIcon className="h-4 w-4 mr-2" />
               <span>{event.currentParticipants}/{event.maxParticipants} uczestników</span>
@@ -141,7 +141,7 @@ export default function EventCard({
         </p>
 
         {/* Tags */}
-        {event.tags.length > 0 && (
+        {event.tags && event.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-4">
             {event.tags.map((tag, index) => (
               <span
@@ -161,6 +161,7 @@ export default function EventCard({
               onClick={() => onToggleRegistration(event.id)}
               disabled={
                 event.maxParticipants !== undefined && 
+                event.currentParticipants !== undefined &&
                 event.currentParticipants >= event.maxParticipants && 
                 !event.isRegistered
               }
