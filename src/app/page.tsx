@@ -110,9 +110,6 @@ export default function Home() {
     return baseItems;
   };
 
-  // Memoize PersonRecognition to prevent unmounting
-  const personRecognitionComponent = useMemo(() => <PersonRecognition />, []);
-
   const renderActiveComponent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -134,7 +131,9 @@ export default function Home() {
       case 'groups':
         return <Groups />;
       case 'recognition':
-        return personRecognitionComponent;
+        // Redirect to dedicated page to avoid re-rendering issues
+        window.location.href = '/recognition';
+        return null;
       case 'card':
         return <DigitalCard />;
       case 'admin':
