@@ -12,6 +12,13 @@ export interface Event {
   qrcodeUrl?: string;
   maxParticipants?: number;
   organizer?: User;
+  // Frontend-specific properties (optional for admin components)
+  currentParticipants?: number;
+  category?: string;
+  isRegistered?: boolean;
+  isFavorite?: boolean;
+  tags?: string[];
+  links?: Array<{ text: string; url: string }>;
 }
 
 export interface EventContextType {

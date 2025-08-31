@@ -10,31 +10,10 @@ import {
 } from '@heroicons/react/24/outline';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { Event } from '@/types/event';
 import Card from './Card';
 import StatusBadge from './StatusBadge';
 import Button from './Button';
-
-interface Event {
-  id: number;
-  title: string;
-  description: string;
-  startTime: string;
-  endTime: string;
-  location: string;
-  latitude?: number;
-  longitude?: number;
-  organizer?: {
-    firstName: string;
-    surname: string;
-  };
-  currentParticipants: number;
-  maxParticipants?: number;
-  category: string;
-  isRegistered: boolean;
-  isFavorite: boolean;
-  tags: string[];
-  links: Array<{ text: string; url: string }>;
-}
 
 interface EventCardProps {
   event: Event;

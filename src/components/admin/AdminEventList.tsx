@@ -1,29 +1,10 @@
 'use client';
 
 import { CalendarIcon } from '@heroicons/react/24/outline';
+import { Event } from '@/types/event';
 import Card from '../ui/Card';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import AdminEventItem from './AdminEventItem';
-
-interface User {
-  id: number;
-  firstName: string;
-  surname: string;
-  roles?: string[];
-}
-
-interface Event {
-  id?: number;
-  title: string;
-  description: string;
-  startTime: string;
-  endTime: string;
-  location: string;
-  latitude?: number;
-  longitude?: number;
-  maxParticipants?: number;
-  organizer?: User;
-}
 
 interface AdminEventListProps {
   events: Event[];

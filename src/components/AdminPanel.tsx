@@ -8,31 +8,12 @@ import {
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { useUser } from '@/context/UserContext';
+import { Event } from '@/types/event';
 import Button from './ui/Button';
 import Alert from './ui/Alert';
 import SectionHeader from './ui/SectionHeader';
 import AdminEventForm from './admin/AdminEventForm';
 import AdminEventList from './admin/AdminEventList';
-
-interface User {
-  id: number;
-  firstName: string;
-  surname: string;
-  roles?: string[];
-}
-
-interface Event {
-  id?: number;
-  title: string;
-  description: string;
-  startTime: string;
-  endTime: string;
-  location: string;
-  latitude?: number;
-  longitude?: number;
-  maxParticipants?: number;
-  organizer?: User;
-}
 
 export default function AdminPanel() {
   const { user, isAdmin, createEvent, updateEvent, deleteEvent, getAllEvents } = useUser();

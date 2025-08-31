@@ -3,33 +3,9 @@
 import { ClockIcon, MapPinIcon, UserGroupIcon, LinkIcon } from '@heroicons/react/24/outline';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { Event } from '@/types/event';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-
-interface User {
-  id: number;
-  firstName: string;
-  surname: string;
-}
-
-interface Event {
-  id: number;
-  title: string;
-  description: string;
-  startTime: string;
-  endTime: string;
-  location: string;
-  latitude?: number;
-  longitude?: number;
-  organizer?: User;
-  currentParticipants: number;
-  maxParticipants?: number;
-  category: string;
-  isRegistered: boolean;
-  isFavorite: boolean;
-  tags: string[];
-  links: Array<{ text: string; url: string }>;
-}
 
 interface EventDetailsModalProps {
   event: Event | null;

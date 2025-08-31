@@ -2,30 +2,11 @@
 
 import React from 'react';
 import { CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Event } from '@/types/event';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import TextArea from '../ui/TextArea';
-
-interface User {
-  id: number;
-  firstName: string;
-  surname: string;
-  roles?: string[];
-}
-
-interface Event {
-  id?: number;
-  title: string;
-  description: string;
-  startTime: string;
-  endTime: string;
-  location: string;
-  latitude?: number;
-  longitude?: number;
-  maxParticipants?: number;
-  organizer?: User;
-}
 
 interface AdminEventFormProps {
   editingEvent: Event | null;

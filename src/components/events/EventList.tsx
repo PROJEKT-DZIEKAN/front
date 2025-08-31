@@ -1,34 +1,10 @@
 'use client';
 
 import { CalendarIcon } from '@heroicons/react/24/outline';
+import { Event } from '@/types/event';
 import Card from '../ui/Card';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import EventCard from '../ui/EventCard';
-
-interface User {
-  id: number;
-  firstName: string;
-  surname: string;
-}
-
-interface Event {
-  id: number;
-  title: string;
-  description: string;
-  startTime: string;
-  endTime: string;
-  location: string;
-  latitude?: number;
-  longitude?: number;
-  organizer?: User | { firstName: string; surname: string };
-  currentParticipants: number;
-  maxParticipants?: number;
-  category: string;
-  isRegistered: boolean;
-  isFavorite: boolean;
-  tags: string[];
-  links: Array<{ text: string; url: string }>;
-}
 
 interface EventListProps {
   events: Event[];

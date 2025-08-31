@@ -3,27 +3,8 @@
 import { PencilIcon, TrashIcon, ClockIcon, MapPinIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { Event } from '@/types/event';
 import Button from '../ui/Button';
-
-interface User {
-  id: number;
-  firstName: string;
-  surname: string;
-  roles?: string[];
-}
-
-interface Event {
-  id?: number;
-  title: string;
-  description: string;
-  startTime: string;
-  endTime: string;
-  location: string;
-  latitude?: number;
-  longitude?: number;
-  maxParticipants?: number;
-  organizer?: User;
-}
 
 interface AdminEventItemProps {
   event: Event;

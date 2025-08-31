@@ -6,19 +6,14 @@ import {
 } from '@heroicons/react/24/outline';
 
 import { useUser, eventBus } from '@/context/UserContext';
+import { Event } from '@/types/event';
+import { User } from '@/types/auth';
 import axios from 'axios';
 import Button from './ui/Button';
 import Alert from './ui/Alert';
 import EventFilters from './events/EventFilters';
 import EventList from './events/EventList';
 import EventDetailsModal from './events/EventDetailsModal';
-
-// Usuwam debounce - nie jest potrzebny, bo nie będziemy automatycznie odświeżać
-interface User {
-  id: number;
-  firstName: string;
-  surname: string;
-}
 
 // Interface dla odpowiedzi z API
 interface ApiEventRegistration {
@@ -45,25 +40,6 @@ interface ApiEvent {
   maxParticipants?: number;
   organizer?: User;
   registrations?: ApiEventRegistration[];
-}
-
-interface Event {
-  id: number;
-  title: string;
-  description: string;
-  startTime: string;
-  endTime: string;
-  location: string;
-  latitude?: number;
-  longitude?: number;
-  organizer?: User;
-  currentParticipants: number;
-  maxParticipants?: number;
-  category: string;
-  isRegistered: boolean;
-  isFavorite: boolean;
-  tags: string[];
-  links: Array<{ text: string; url: string }>;
 }
 
 const API_BASE_URL = 'https://dziekan-backend-ywfy.onrender.com';
@@ -268,7 +244,7 @@ export default function EventProgram() {
     const matchesCategory = selectedCategory === 'all' || event.category === selectedCategory;
     const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         event.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+                         (event.tags && event.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())));
     
     return matchesCategory && matchesSearch;
   });
