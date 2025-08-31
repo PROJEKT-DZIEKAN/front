@@ -20,7 +20,7 @@ interface Event {
   location: string;
   latitude?: number;
   longitude?: number;
-  organizer?: User;
+  organizer?: User | { firstName: string; surname: string };
   currentParticipants: number;
   maxParticipants?: number;
   category: string;
