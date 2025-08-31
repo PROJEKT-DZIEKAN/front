@@ -8,7 +8,7 @@ import {
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { useUser } from '@/context/UserContext';
-import { Event } from '@/types/event';
+import { Event, CreateEventRequest } from '@/types/event';
 import Button from './ui/Button';
 import Alert from './ui/Alert';
 import SectionHeader from './ui/SectionHeader';
@@ -21,7 +21,7 @@ export default function AdminPanel() {
   const [isLoading, setIsLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
-  const [formData, setFormData] = useState<Event>({
+  const [formData, setFormData] = useState<CreateEventRequest>({
     title: '',
     description: '',
     startTime: '',

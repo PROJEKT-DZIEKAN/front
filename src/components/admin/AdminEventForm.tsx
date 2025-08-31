@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { Event } from '@/types/event';
+import { Event, CreateEventRequest } from '@/types/event';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -10,7 +10,7 @@ import TextArea from '../ui/TextArea';
 
 interface AdminEventFormProps {
   editingEvent: Event | null;
-  formData: Event;
+  formData: CreateEventRequest;
   isLoading: boolean;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onSubmit: (e: React.FormEvent) => void;

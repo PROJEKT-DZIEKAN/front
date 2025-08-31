@@ -1,7 +1,7 @@
 import { User } from './auth';
 
 export interface Event {
-  id?: number;
+  id: number;
   title: string;
   description: string;
   startTime: string; // ISO string format
@@ -21,9 +21,21 @@ export interface Event {
   links?: Array<{ text: string; url: string }>;
 }
 
+// Separate interface for creating events (without id)
+export interface CreateEventRequest {
+  title: string;
+  description: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  latitude?: number;
+  longitude?: number;
+  maxParticipants?: number;
+}
+
 export interface EventContextType {
-  createEvent: (event: Event) => Promise<Event | null>;
-  updateEvent: (id: number, event: Event) => Promise<Event | null>;
+  createEvent: (event: CreateEventRequest) => Promise<Event | null>;
+  updateEvent: (id: number, event: CreateEventRequest) => Promise<Event | null>;
   deleteEvent: (id: number) => Promise<boolean>;
   getAllEvents: () => Promise<Event[]>;
 }
