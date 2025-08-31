@@ -94,26 +94,6 @@ export default function PersonRecognition() {
       
       setStream(mediaStream);
       setIsCameraOpen(true);
-      
-      if (videoRef.current) {
-        // Ustawiamy strumień wideo i wymuszamy odtworzenie po załadowaniu metadanych
-        videoRef.current.srcObject = mediaStream as unknown as MediaStream;
-        videoRef.current.muted = true;
-        const tryPlay = async () => {
-          try {
-            await videoRef.current?.play();
-          } catch {
-            // Nie przerywamy – niektóre przeglądarki wymagają dodatkowej interakcji użytkownika
-          }
-        };
-        if (videoRef.current.readyState >= 1) {
-          await tryPlay();
-        } else {
-          videoRef.current.onloadedmetadata = () => {
-            void tryPlay();
-          };
-        }
-      }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setError('Brak dostępu do kamery. Upewnij się, że przyznałeś uprawnienia w przeglądarce i że strona działa przez HTTPS.');
@@ -124,6 +104,28 @@ export default function PersonRecognition() {
     }
   };
 
+  // Po zamontowaniu elementu <video> i po otrzymaniu MediaStream przypisz go i wystartuj odtwarzanie
+  useEffect(() => {
+    if (!isCameraOpen || !stream || !videoRef.current) return;
+    const video = videoRef.current;
+    video.srcObject = stream;
+    video.muted = true;
+    const tryPlay = async () => {
+      try {
+        await video.play();
+      } catch {
+        // Ciche niepowodzenie – część przeglądarek wymaga dodatkowej interakcji użytkownika
+      }
+    };
+    if (video.readyState >= 1) {
+      void tryPlay();
+    } else {
+      video.onloadedmetadata = () => {
+        void tryPlay();
+      };
+    }
+  }, [isCameraOpen, stream]);
+
   // Zatrzymanie kamery
   const stopCamera = useCallback(() => {
     if (stream) {
@@ -132,6 +134,10 @@ export default function PersonRecognition() {
     }
     setIsCameraOpen(false);
     setCapturedImage(null);
+    if (videoRef.current) {
+      // Oczyść źródło wideo
+      videoRef.current.srcObject = null;
+    }
   }, [stream]);
 
   // Robienie zdjęcia
