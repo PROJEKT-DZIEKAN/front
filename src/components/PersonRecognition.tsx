@@ -96,7 +96,23 @@ export default function PersonRecognition() {
       setIsCameraOpen(true);
       
       if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+        // Ustawiamy strumień wideo i wymuszamy odtworzenie po załadowaniu metadanych
+        videoRef.current.srcObject = mediaStream as unknown as MediaStream;
+        videoRef.current.muted = true;
+        const tryPlay = async () => {
+          try {
+            await videoRef.current?.play();
+          } catch (_) {
+            // Nie przerywamy – niektóre przeglądarki wymagają dodatkowej interakcji użytkownika
+          }
+        };
+        if (videoRef.current.readyState >= 1) {
+          await tryPlay();
+        } else {
+          videoRef.current.onloadedmetadata = () => {
+            void tryPlay();
+          };
+        }
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
@@ -258,6 +274,7 @@ export default function PersonRecognition() {
                 ref={videoRef}
                 autoPlay
                 playsInline
+                muted
                 className="w-full max-w-md mx-auto rounded-lg"
                 style={{ transform: 'scaleX(-1)' }} // Mirror effect
               />
