@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   HomeIcon, 
   CalendarIcon, 
@@ -32,7 +32,7 @@ import LocationServices from '@/components/LocationServices';
 import EmergencyServices from '@/components/EmergencyServices';
 import Surveys from '@/components/Surveys';
 import Groups from '@/components/Groups';
-
+import PersonRecognition from '@/components/PersonRecognition';
 import DigitalCard from '@/components/DigitalCard';
 import Tutorial from '@/components/Tutorial';
 import QRLoginPopup from '@/components/QRLoginPopup';
@@ -110,6 +110,9 @@ export default function Home() {
     return baseItems;
   };
 
+  // Memoize PersonRecognition to prevent unmounting
+  const personRecognitionComponent = useMemo(() => <PersonRecognition />, []);
+
   const renderActiveComponent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -131,9 +134,7 @@ export default function Home() {
       case 'groups':
         return <Groups />;
       case 'recognition':
-        // Redirect to dedicated page to avoid re-rendering issues
-        window.location.href = '/recognition';
-        return null;
+        return personRecognitionComponent;
       case 'card':
         return <DigitalCard />;
       case 'admin':

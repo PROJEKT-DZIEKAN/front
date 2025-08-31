@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import Image from 'next/image';
 import { 
   CameraIcon, 
   PhotoIcon, 
@@ -335,11 +334,9 @@ export default function PersonRecognition() {
               </div>
             )}
             {capturedImage && (
-              <Image 
+              <img 
                 src={capturedImage}
                 alt="Podgląd"
-                width={400}
-                height={300}
                 className="absolute inset-0 w-full h-full object-cover"
               />
             )}
