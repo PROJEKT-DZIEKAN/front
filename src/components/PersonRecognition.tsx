@@ -113,103 +113,38 @@ export default function PersonRecognition() {
       setIsCameraOpen(true);
       setDebug('✅ Stream obtained, setting camera open...');
       
-      // Sprawdź czy video element istnieje
-      if (!videoRef.current) {
-        setDebug('❌ Video element not found!');
-        setError('Element video nie został znaleziony');
-        return;
-      }
-      
-      const video = videoRef.current;
-      console.log('📺 Video element found:', {
-        tagName: video.tagName,
-        readyState: video.readyState,
-        videoWidth: video.videoWidth,
-        videoHeight: video.videoHeight,
-        srcObject: video.srcObject,
-        muted: video.muted,
-        playsInline: video.playsInline,
-        autoPlay: video.autoplay
-      });
-      
-      setDebug('🔗 Assigning stream to video element...');
-      video.srcObject = mediaStream;
-      video.muted = true;
-      video.playsInline = true;
-      
-      console.log('📺 After assignment:', {
-        srcObject: video.srcObject,
-        muted: video.muted,
-        playsInline: video.playsInline
-      });
-      
-      // Sprawdź wymiary po przypisaniu
-      setTimeout(() => {
-        console.log('📏 Video dimensions after 100ms:', {
-          videoWidth: video.videoWidth,
-          videoHeight: video.videoHeight,
-          clientWidth: video.clientWidth,
-          clientHeight: video.clientHeight,
-          offsetWidth: video.offsetWidth,
-          offsetHeight: video.offsetHeight
-        });
-        setDebug(`📏 Video size: ${video.videoWidth}x${video.videoHeight}, container: ${video.clientWidth}x${video.clientHeight}`);
-      }, 100);
-      
-      try {
-        setDebug('▶️ Attempting to play video...');
-        console.log('🎬 PersonRecognition: Attempting video.play()...');
-        await video.play();
-        setDebug('✅ Video playing successfully!');
-        console.log('✅ PersonRecognition: Video.play() success');
+      // OPCJA 1: Bezpośrednie przypisanie (jak w QRCodeSection)
+      if (videoRef.current) {
+        const video = videoRef.current;
+        console.log('📺 Video element found, direct assignment...');
         
-        // Sprawdź czy rzeczywiście odtwarza
-        setTimeout(() => {
-          console.log('📊 Video playback status after 500ms:', {
-            paused: video.paused,
-            ended: video.ended,
-            readyState: video.readyState,
-            videoWidth: video.videoWidth,
-            videoHeight: video.videoHeight,
-            currentTime: video.currentTime
-          });
-          setDebug(`📊 Playback: paused=${video.paused}, size=${video.videoWidth}x${video.videoHeight}, time=${video.currentTime.toFixed(2)}s`);
-        }, 500);
+        video.srcObject = mediaStream;
+        video.muted = true;
+        video.playsInline = true;
         
-      } catch (playError) {
-        console.error('❌ PersonRecognition: Video.play() failed:', playError);
-        const errorMessage = playError instanceof Error ? playError.message : 'Unknown play error';
-        setDebug(`❌ Play failed: ${errorMessage}`);
+        setDebug('🔗 Stream assigned directly to video');
         
-        // Fallback na onloadedmetadata
-        setDebug('🔄 Setting up onloadedmetadata fallback...');
-        video.onloadedmetadata = async () => {
+        // OPCJA 2: Opóźnione odtworzenie (unikamy AbortError)
+        setTimeout(async () => {
           try {
-            console.log('📋 PersonRecognition: onloadedmetadata triggered');
-            setDebug('📋 Metadata loaded, attempting play...');
+            console.log('🎬 Delayed play attempt...');
+            setDebug('🎬 Attempting delayed play...');
             await video.play();
-            setDebug('✅ Video playing after metadata loaded!');
-            console.log('✅ PersonRecognition: Video.play() success after metadata');
-          } catch (metadataError) {
-            console.error('❌ PersonRecognition: Video.play() failed after metadata:', metadataError);
-            const errorMessage = metadataError instanceof Error ? metadataError.message : 'Unknown metadata error';
-            setDebug(`❌ Play failed after metadata: ${errorMessage}`);
+            setDebug('✅ Video playing with delay!');
+            console.log('✅ PersonRecognition: Delayed video.play() success');
+          } catch (delayedError) {
+            console.error('❌ Delayed play failed:', delayedError);
+            setDebug('❌ Delayed play failed, trying onloadedmetadata...');
+            
+            // Fallback na onloadedmetadata
+            video.onloadedmetadata = async () => {
+              try {
+                await video.play();
+                setDebug('✅ Video playing after metadata!');
+              } catch {}
+            };
           }
-        };
-        
-        // Dodatkowy fallback na oncanplay
-        video.oncanplay = async () => {
-          try {
-            console.log('🎬 PersonRecognition: oncanplay triggered');
-            setDebug('🎬 Can play, attempting play...');
-            if (video.paused) {
-              await video.play();
-              setDebug('✅ Video playing after canplay!');
-            }
-          } catch (canplayError) {
-            console.error('❌ PersonRecognition: Video.play() failed after canplay:', canplayError);
-          }
-        };
+        }, 200); // 200ms opóźnienie
       }
       
     } catch (err) {
