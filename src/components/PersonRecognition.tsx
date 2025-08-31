@@ -247,92 +247,85 @@ export default function PersonRecognition() {
       </div>
 
       {/* Kamera */}
-      {!isCameraOpen ? (
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="text-center space-y-4">
-            <div className="w-64 h-48 bg-gray-100 rounded-lg mx-auto flex items-center justify-center">
-              <CameraIcon className="h-16 w-16 text-gray-400" />
-            </div>
-            <div className="space-y-2">
-              <button 
-                onClick={startCamera}
-                disabled={isLoading}
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
-              >
-                Włącz kamerę
-              </button>
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isLoading}
-                className="w-full bg-gray-600 text-white py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors disabled:bg-gray-400"
-              >
-                <PhotoIcon className="h-5 w-5 inline mr-2" />
-                Prześlij zdjęcie
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="text-center space-y-4">
-            <div className="relative">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full max-w-md mx-auto rounded-lg"
-                style={{ transform: 'scaleX(-1)' }} // Mirror effect
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+        <div className="text-center space-y-4">
+          <div className="relative mx-auto max-w-md rounded-lg overflow-hidden border border-gray-300" style={{ aspectRatio: '4 / 3' }}>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ transform: 'scaleX(-1)' }} // Mirror effect
+            />
+            {!isCameraOpen && !capturedImage && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                <CameraIcon className="h-16 w-16 text-gray-400" />
+              </div>
+            )}
+            {capturedImage && (
+              <img 
+                src={capturedImage}
+                alt="Podgląd"
+                className="absolute inset-0 w-full h-full object-cover"
               />
-              {capturedImage && (
-                <div 
-                  className="absolute top-0 left-1/2 transform -translate-x-1/2 w-full max-w-md rounded-lg bg-cover bg-center"
-                  style={{ 
-                    backgroundImage: `url(${capturedImage})`,
-                    aspectRatio: '4/3'
-                  }}
-                />
-              )}
-            </div>
-            
-            <div className="flex space-x-2">
-              {!capturedImage ? (
-                <>
-                  <button 
-                    onClick={capturePhoto}
-                    className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Zrób zdjęcie
-                  </button>
-                  <button 
-                    onClick={stopCamera}
-                    className="flex-1 bg-gray-600 text-white py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors"
-                  >
-                    Anuluj
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button 
-                    onClick={() => processImage('camera')}
-                    disabled={isLoading}
-                    className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400"
-                  >
-                    {isLoading ? 'Rozpoznaję...' : 'Rozpoznaj'}
-                  </button>
-                  <button 
-                    onClick={() => setCapturedImage(null)}
-                    disabled={isLoading}
-                    className="flex-1 bg-yellow-600 text-white py-3 px-4 rounded-lg hover:bg-yellow-700 transition-colors disabled:bg-gray-400"
-                  >
-                    Ponów
-                  </button>
-                </>
-              )}
-            </div>
+            )}
+          </div>
+          <div className="space-y-2">
+            {!isCameraOpen ? (
+              <>
+                <button 
+                  onClick={startCamera}
+                  disabled={isLoading}
+                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+                >
+                  Włącz kamerę
+                </button>
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading}
+                  className="w-full bg-gray-600 text-white py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors disabled:bg-gray-400"
+                >
+                  <PhotoIcon className="h-5 w-5 inline mr-2" />
+                  Prześlij zdjęcie
+                </button>
+              </>
+            ) : !capturedImage ? (
+              <div className="flex space-x-2">
+                <button 
+                  onClick={capturePhoto}
+                  className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Zrób zdjęcie
+                </button>
+                <button 
+                  onClick={stopCamera}
+                  className="flex-1 bg-gray-600 text-white py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Anuluj
+                </button>
+              </div>
+            ) : (
+              <div className="flex space-x-2">
+                <button 
+                  onClick={() => processImage('camera')}
+                  disabled={isLoading}
+                  className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400"
+                >
+                  {isLoading ? 'Rozpoznaję...' : 'Rozpoznaj'}
+                </button>
+                <button 
+                  onClick={() => setCapturedImage(null)}
+                  disabled={isLoading}
+                  className="flex-1 bg-yellow-600 text-white py-3 px-4 rounded-lg hover:bg-yellow-700 transition-colors disabled:bg-gray-400"
+                >
+                  Ponów
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
       {/* Ukryty input dla plików */}
       <input
