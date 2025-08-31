@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   HomeIcon, 
   CalendarIcon, 
@@ -110,6 +110,9 @@ export default function Home() {
     return baseItems;
   };
 
+  // Memoize PersonRecognition to prevent unmounting
+  const personRecognitionComponent = useMemo(() => <PersonRecognition />, []);
+
   const renderActiveComponent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -131,7 +134,7 @@ export default function Home() {
       case 'groups':
         return <Groups />;
       case 'recognition':
-        return <PersonRecognition />;
+        return personRecognitionComponent;
       case 'card':
         return <DigitalCard />;
       case 'admin':
