@@ -2,7 +2,7 @@
 
 import { createContext, useContext, ReactNode } from 'react';
 import axios from 'axios';
-import { Event, EventContextType } from '@/types/event';
+import { Event, EventContextType, CreateEventRequest } from '@/types/event';
 import { getAuthHeaders, API_BASE_URL } from '@/utils/authUtils';
 import { handleAxiosError } from '@/utils/apiClient';
 import { eventBus } from '@/utils/eventBus';
@@ -11,7 +11,7 @@ const EventContext = createContext<EventContextType | null>(null);
 
 export function EventProvider({ children }: { children: ReactNode }) {
   // Funkcje do zarządzania eventami
-  const createEvent = async (event: Event): Promise<Event | null> => {
+  const createEvent = async (event: CreateEventRequest): Promise<Event | null> => {
     try {
       const headers = getAuthHeaders();
       if (!headers) {
@@ -21,7 +21,7 @@ export function EventProvider({ children }: { children: ReactNode }) {
       }
 
       // Konwersja dat do formatu ISO jeśli potrzeba
-      const eventData = {
+      const eventData: CreateEventRequest = {
         title: event.title,
         description: event.description,
         startTime: event.startTime.includes('T') ? event.startTime : `${event.startTime}:00`,
@@ -29,8 +29,7 @@ export function EventProvider({ children }: { children: ReactNode }) {
         location: event.location,
         latitude: event.latitude,
         longitude: event.longitude,
-        maxParticipants: event.maxParticipants,
-        organizerId: event.organizer?.id
+        maxParticipants: event.maxParticipants
       };
 
       console.log('📤 Wysyłam dane eventu:', eventData);
@@ -56,22 +55,25 @@ export function EventProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateEvent = async (id: number, event: Event): Promise<Event | null> => {
+  const updateEvent = async (id: number, event: CreateEventRequest): Promise<Event | null> => {
     try {
       const headers = getAuthHeaders();
       if (!headers) return null;
 
-      const response = await axios.put(`${API_BASE_URL}/api/events/update/${id}`, {
-        title: event.title,
-        description: event.description,
-        startTime: event.startTime,
-        endTime: event.endTime,
-        location: event.location,
-        latitude: event.latitude,
-        longitude: event.longitude,
-        maxParticipants: event.maxParticipants,
-        organizer: event.organizer
-      }, { headers });
+      const response = await axios.put(
+        `${API_BASE_URL}/api/events/update/${id}`,
+        {
+          title: event.title,
+          description: event.description,
+          startTime: event.startTime.includes('T') ? event.startTime : `${event.startTime}:00`,
+          endTime: event.endTime.includes('T') ? event.endTime : `${event.endTime}:00`,
+          location: event.location,
+          latitude: event.latitude,
+          longitude: event.longitude,
+          maxParticipants: event.maxParticipants
+        },
+        { headers }
+      );
 
       // Informuj o zmianie
       eventBus.emit();
