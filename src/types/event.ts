@@ -1,0 +1,22 @@
+import { User } from './auth';
+
+export interface Event {
+  id?: number;
+  title: string;
+  description: string;
+  startTime: string; // ISO string format
+  endTime: string;   // ISO string format
+  location: string;
+  latitude?: number;
+  longitude?: number;
+  qrcodeUrl?: string;
+  maxParticipants?: number;
+  organizer?: User;
+}
+
+export interface EventContextType {
+  createEvent: (event: Event) => Promise<Event | null>;
+  updateEvent: (id: number, event: Event) => Promise<Event | null>;
+  deleteEvent: (id: number) => Promise<boolean>;
+  getAllEvents: () => Promise<Event[]>;
+}

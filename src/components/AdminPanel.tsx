@@ -4,19 +4,15 @@ import { useState, useCallback, useEffect } from 'react';
 import { 
   CogIcon,
   PlusIcon,
-  PencilIcon,
-  TrashIcon,
-  CheckIcon,
   XMarkIcon,
-  CalendarIcon,
-  ClockIcon,
-  MapPinIcon,
-  UserGroupIcon,
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { useUser } from '@/context/UserContext';
-import { format, parseISO } from 'date-fns';
-import { pl } from 'date-fns/locale';
+import Button from './ui/Button';
+import Alert from './ui/Alert';
+import SectionHeader from './ui/SectionHeader';
+import AdminEventForm from './admin/AdminEventForm';
+import AdminEventList from './admin/AdminEventList';
 
 interface User {
   id: number;
@@ -78,24 +74,20 @@ export default function AdminPanel() {
   if (!isAdmin) {
     return (
       <div className="p-4 space-y-6">
-        <div className="text-center">
-          <XMarkIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Brak dostępu</h1>
-          <p className="text-gray-600 mb-4">Nie masz uprawnień do panelu administracyjnego</p>
-          {user && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 max-w-md mx-auto">
-              <p className="text-sm text-yellow-800">
-                <strong>Zalogowany jako:</strong> {user.firstName} {user.surname} (ID: {user.id})
-              </p>
-              <p className="text-sm text-yellow-800">
-                <strong>Role:</strong> {user.roles?.join(', ') || 'Brak ról'}
-              </p>
-              <p className="text-xs text-yellow-600 mt-2">
-                Potrzebujesz roli &quot;ADMIN&quot; aby uzyskać dostęp do tego panelu
-              </p>
+        <SectionHeader
+          icon={<XMarkIcon className="h-12 w-12 text-red-500 mx-auto" />}
+          title="Brak dostępu"
+          subtitle="Nie masz uprawnień do panelu administracyjnego"
+        />
+        {user && (
+          <Alert type="warning" className="max-w-md mx-auto">
+            <div className="space-y-2">
+              <p><strong>Zalogowany jako:</strong> {user.firstName} {user.surname} (ID: {user.id})</p>
+              <p><strong>Role:</strong> {user.roles?.join(', ') || 'Brak ról'}</p>
+              <p className="text-xs">Potrzebujesz roli "ADMIN" aby uzyskać dostęp do tego panelu</p>
             </div>
-          )}
-        </div>
+          </Alert>
+        )}
       </div>
     );
   }
@@ -207,249 +199,74 @@ export default function AdminPanel() {
   return (
     <div className="p-4 space-y-6">
       {/* Header */}
-      <div className="text-center">
-        <CogIcon className="h-12 w-12 text-blue-500 mx-auto mb-4" />
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Panel Administratora</h1>
-        <p className="text-gray-600">Zarządzaj wydarzeniami</p>
-        <div className="mt-2 space-y-1">
-          <p className="text-sm text-green-600">
-            Zalogowany jako: <strong>{user?.firstName} {user?.surname}</strong> (ID: {user?.id})
-          </p>
-          <p className="text-xs text-purple-600">
-            Role: <strong>{user?.roles?.join(', ') || 'Brak ról'}</strong>
-          </p>
-        </div>
-      </div>
+      <SectionHeader
+        icon={<CogIcon className="h-12 w-12 text-blue-500 mx-auto" />}
+        title="Panel Administratora"
+        subtitle="Zarządzaj wydarzeniami"
+        action={
+          <div className="mt-2 space-y-1">
+            <p className="text-sm text-green-600">
+              Zalogowany jako: <strong>{user?.firstName} {user?.surname}</strong> (ID: {user?.id})
+            </p>
+            <p className="text-xs text-purple-600">
+              Role: <strong>{user?.roles?.join(', ') || 'Brak ról'}</strong>
+            </p>
+          </div>
+        }
+      />
 
       {/* Przycisk dodawania nowego eventu */}
       {!showAddForm && (
         <div className="text-center space-y-3">
-          <button
+          <Button
             onClick={() => setShowAddForm(true)}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center mx-auto"
+            variant="primary"
+            size="lg"
+            icon={<PlusIcon className="h-5 w-5" />}
+            className="mx-auto"
           >
-            <PlusIcon className="h-5 w-5 mr-2" />
             Dodaj nowy event
-          </button>
+          </Button>
           
-          <button
+          <Button
             onClick={loadEvents}
             disabled={isLoading}
-            className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center mx-auto text-sm"
+            loading={isLoading}
+            variant="secondary"
+            icon={<ArrowPathIcon className="h-4 w-4" />}
+            className="mx-auto"
           >
-            <ArrowPathIcon className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            {isLoading ? 'Ładowanie...' : 'Załaduj eventy z serwera'}
-          </button>
+            Załaduj eventy z serwera
+          </Button>
         </div>
       )}
 
       {/* Wyświetlanie błędu */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <XMarkIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Błąd</h3>
-              <div className="mt-2 text-sm text-red-700">
-                <p>{error}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <Alert type="error" title="Błąd">
+          {error}
+        </Alert>
       )}
 
       {/* Formularz dodawania/edycji eventu */}
       {showAddForm && (
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            {editingEvent ? 'Edytuj Event' : 'Dodaj Nowy Event'}
-          </h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tytuł *
-              </label>
-              <input
-                type="text"
-                name="title"
-                value={formData.title}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                placeholder="Wprowadź tytuł eventu"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Opis *
-              </label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                required
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                placeholder="Wprowadź opis eventu"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Data i godzina rozpoczęcia *
-                </label>
-                <input
-                  type="datetime-local"
-                  name="startTime"
-                  value={formData.startTime}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Data i godzina zakończenia *
-                </label>
-                <input
-                  type="datetime-local"
-                  name="endTime"
-                  value={formData.endTime}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Lokalizacja *
-              </label>
-              <input
-                type="text"
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                placeholder="Wprowadź lokalizację eventu"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Maksymalna liczba uczestników
-              </label>
-              <input
-                type="number"
-                name="maxParticipants"
-                value={formData.maxParticipants || ''}
-                onChange={handleInputChange}
-                min="1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                placeholder="Pozostaw puste dla nieograniczonej liczby"
-              />
-            </div>
-
-            <div className="flex space-x-3 pt-4">
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center"
-              >
-                <CheckIcon className="h-4 w-4 mr-2" />
-                {isLoading ? 'Zapisywanie...' : (editingEvent ? 'Aktualizuj' : 'Dodaj Event')}
-              </button>
-              <button
-                type="button"
-                onClick={cancelEdit}
-                className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center"
-              >
-                <XMarkIcon className="h-4 w-4 mr-2" />
-                Anuluj
-              </button>
-            </div>
-          </form>
-        </div>
+        <AdminEventForm
+          editingEvent={editingEvent}
+          formData={formData}
+          isLoading={isLoading}
+          onInputChange={handleInputChange}
+          onSubmit={handleSubmit}
+          onCancel={cancelEdit}
+        />
       )}
 
       {/* Lista eventów */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Zarządzaj Eventami ({events.length})
-        </h2>
-
-        {isLoading && !showAddForm ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-            <p className="text-gray-600">Ładowanie eventów...</p>
-          </div>
-        ) : events.length === 0 ? (
-          <div className="text-center py-8">
-            <CalendarIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">Brak eventów do wyświetlenia</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {events.map((event) => (
-              <div key={event.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                      {event.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                      {event.description}
-                    </p>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEdit(event)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Edytuj"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => event.id && handleDelete(event.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Usuń"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-gray-600">
-                  <div className="flex items-center">
-                    <ClockIcon className="h-4 w-4 mr-1" />
-                    <span>
-                      {event.startTime ? format(parseISO(event.startTime), 'dd.MM.yyyy HH:mm', { locale: pl }) : 'Brak daty'}
-                    </span>
-                  </div>
-                  <div className="flex items-center">
-                    <MapPinIcon className="h-4 w-4 mr-1" />
-                    <span>{event.location}</span>
-                  </div>
-                  {event.maxParticipants && (
-                    <div className="flex items-center">
-                      <UserGroupIcon className="h-4 w-4 mr-1" />
-                      <span>Max: {event.maxParticipants}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <AdminEventList
+        events={events}
+        isLoading={isLoading && !showAddForm}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
     </div>
   );
 } 
