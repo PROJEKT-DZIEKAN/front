@@ -102,7 +102,7 @@ export default function PersonRecognition() {
         const tryPlay = async () => {
           try {
             await videoRef.current?.play();
-          } catch (_) {
+          } catch {
             // Nie przerywamy – niektóre przeglądarki wymagają dodatkowej interakcji użytkownika
           }
         };
