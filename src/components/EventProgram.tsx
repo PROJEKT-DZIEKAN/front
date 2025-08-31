@@ -308,25 +308,7 @@ export default function EventProgram() {
     }
   };
 
-  const getCategoryColor = (category: Event['category']) => {
-    switch (category) {
-      case 'presentation': return 'bg-blue-500';
-      case 'workshop': return 'bg-green-500';
-      case 'social': return 'bg-purple-500';
-      case 'competition': return 'bg-orange-500';
-      default: return 'bg-gray-500';
-    }
-  };
 
-  const getCategoryIcon = (category: Event['category']) => {
-    switch (category) {
-      case 'presentation': return CalendarIcon;
-      case 'workshop': return UserGroupIcon;
-      case 'social': return StarIcon;
-      case 'competition': return CheckCircleIcon;
-      default: return CalendarIcon;
-    }
-  };
 
   return (
     <div className="p-4 space-y-6">

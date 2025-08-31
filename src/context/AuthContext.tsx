@@ -8,7 +8,6 @@ import {
   getTokens, 
   saveTokens, 
   clearTokens, 
-  getAuthHeaders,
   API_BASE_URL 
 } from '@/utils/authUtils';
 import { handleAxiosError } from '@/utils/apiClient';

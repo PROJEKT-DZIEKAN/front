@@ -1,6 +1,6 @@
 'use client';
 
-import Card from '../ui/Card';
+
 
 interface User {
   id: number;
@@ -37,9 +37,6 @@ export default function ChatList({
   chats,
   selectedChatId,
   isAdmin,
-  allUsers,
-  chatMessages,
-  user,
   onSelectChat,
   getChatAdmin,
   getLatestMessage

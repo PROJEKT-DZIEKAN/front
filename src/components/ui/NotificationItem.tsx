@@ -4,13 +4,11 @@ import {
   CheckCircleIcon, 
   ExclamationTriangleIcon, 
   InformationCircleIcon, 
-  XCircleIcon,
   UserIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
 import { format, formatDistanceToNow } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import StatusBadge from './StatusBadge';
 
 interface Notification {
   id: string;

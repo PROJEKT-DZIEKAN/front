@@ -13,15 +13,6 @@ interface UserContextType extends AuthContextType, EventContextType {}
 export { eventBus } from '@/utils/eventBus';
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const authContext = useAuth();
-  const eventContext = useEvents();
-
-  // Łączymy konteksty w jeden
-  const combinedContext: UserContextType = {
-    ...authContext,
-    ...eventContext
-  };
-
   return (
     <div>
       {children}
