@@ -11,6 +11,8 @@ import {
   UserIcon
 } from '@heroicons/react/24/outline';
 
+const API_BASE_URL = 'https://duck-duck-production.up.railway.app';
+
 interface RecognitionResult {
   success: boolean;
   identity: string;
@@ -18,7 +20,7 @@ interface RecognitionResult {
   distance?: number;
   processing_time_seconds: number;
   timestamp: string;
-  status: 'recognized' | 'unknown' | 'no_face' | 'error' | 'server_error';
+  status?: 'recognized' | 'unknown' | 'no_face' | 'error' | 'server_error';
   message: string;
   person?: {
     full_name: string;
@@ -33,8 +35,6 @@ interface ApiError {
   message: string;
   status: string;
 }
-
-const API_BASE_URL = 'https://duck-duck-production.up.railway.app';
 
 export default function PersonRecognition() {
   const [isLoading, setIsLoading] = useState(false);
@@ -99,7 +99,11 @@ export default function PersonRecognition() {
         videoRef.current.srcObject = mediaStream;
       }
     } catch (err) {
-      setError('Nie można uzyskać dostępu do kamery. Sprawdź uprawnienia.');
+      if (err instanceof DOMException && err.name === 'NotAllowedError') {
+        setError('Brak dostępu do kamery. Upewnij się, że przyznałeś uprawnienia w przeglądarce i że strona działa przez HTTPS.');
+      } else {
+        setError('Nie można uzyskać dostępu do kamery. Sprawdź uprawnienia.');
+      }
       console.error('Błąd dostępu do kamery:', err);
     }
   };
@@ -126,7 +130,7 @@ export default function PersonRecognition() {
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0);
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
     setCapturedImage(imageDataUrl);
@@ -139,7 +143,6 @@ export default function PersonRecognition() {
     setResult(null);
 
     try {
-      // Sprawdź połączenie z API
       const isApiHealthy = await checkApiHealth();
       if (!isApiHealthy) {
         throw new Error('Serwer rozpoznawania twarzy jest niedostępny. Spróbuj ponownie później.');
@@ -148,7 +151,6 @@ export default function PersonRecognition() {
       let fileToProcess: File;
 
       if (imageSource === 'camera' && capturedImage) {
-        // Konwertuj zdjęcie z kamery na File
         const response = await fetch(capturedImage);
         const blob = await response.blob();
         fileToProcess = new File([blob], 'camera_photo.jpg', { type: 'image/jpeg' });
@@ -190,6 +192,7 @@ export default function PersonRecognition() {
     setResult(null);
     setError(null);
     setCapturedImage(null);
+    setIsCameraOpen(false);
   };
 
   // Cleanup przy odmontowaniu komponentu
@@ -213,7 +216,7 @@ export default function PersonRecognition() {
     }
   };
 
-  return (
+      return (
     <div className="p-4 space-y-6">
       <div className="text-center">
         <CameraIcon className="h-12 w-12 text-blue-500 mx-auto mb-4" />
@@ -356,7 +359,7 @@ export default function PersonRecognition() {
       {result && (
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <div className="text-center space-y-4">
-            {getStatusIcon(result.status)}
+            {getStatusIcon(result.status || 'default')}
             
             <div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">
@@ -374,7 +377,7 @@ export default function PersonRecognition() {
               )}
               
               <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                {result.confidence && (
+                {result.confidence !== undefined && (
                   <div className="text-center">
                     <p className="font-medium">Pewność</p>
                     <p className="text-lg font-bold text-blue-600">{result.confidence}%</p>
@@ -388,8 +391,8 @@ export default function PersonRecognition() {
                   </p>
                 </div>
               </div>
-
-              {result.distance && (
+              
+              {result.distance !== undefined && (
                 <div className="text-center mt-2">
                   <p className="text-xs text-gray-500">
                     Dystans: {result.distance.toFixed(3)}
