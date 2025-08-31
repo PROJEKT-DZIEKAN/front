@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   HomeIcon, 
   CalendarIcon, 
@@ -32,7 +32,7 @@ import LocationServices from '@/components/LocationServices';
 import EmergencyServices from '@/components/EmergencyServices';
 import Surveys from '@/components/Surveys';
 import Groups from '@/components/Groups';
-import PersonRecognition from '@/components/PersonRecognition';
+
 import DigitalCard from '@/components/DigitalCard';
 import Tutorial from '@/components/Tutorial';
 import QRLoginPopup from '@/components/QRLoginPopup';
