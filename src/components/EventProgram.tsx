@@ -42,7 +42,7 @@ interface ApiEvent {
   registrations?: ApiEventRegistration[];
 }
 
-const API_BASE_URL = 'https://dziekan-backend-ywfy.onrender.com';
+const API_BASE_URL = 'https://dziekan-48de5f4dea14.herokuapp.com';
 
 export default function EventProgram() {
   const { user, isAuthenticated, getAllEvents } = useUser();

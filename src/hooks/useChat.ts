@@ -27,7 +27,7 @@ export interface User {
 }
 
 // Backend URL - dostosuj do swojego backendu
-const API_BASE_URL = 'https://dziekan-backend-ywfy.onrender.com';
+const API_BASE_URL = 'https://dziekan-48de5f4dea14.herokuapp.com';
 
 export const useChat = () => {
   const { user, isAdmin, token } = useAuth();

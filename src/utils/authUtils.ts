@@ -1,6 +1,6 @@
 import { User, AuthTokens } from '@/types/auth';
 
-const API_BASE_URL = 'https://dziekan-backend-ywfy.onrender.com';
+const API_BASE_URL = 'https://dziekan-48de5f4dea14.herokuapp.com';
 
 // Funkcja do dekodowania JWT tokenu (bez weryfikacji - tylko odczyt)
 export const decodeJWT = (token: string) => {

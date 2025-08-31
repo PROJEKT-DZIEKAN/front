@@ -71,7 +71,7 @@ export default function RealChatDemo() {
       <div className="mb-6 p-4 bg-blue-50 rounded-lg">
         <h3 className="font-medium text-blue-800 mb-2">🔗 Połączenie z backendem:</h3>
         <p className="text-sm text-blue-700">
-          <strong>URL:</strong> https://dziekan-backend-ywfy.onrender.com
+          <strong>URL:</strong> https://dziekan-48de5f4dea14.herokuapp.com
         </p>
         <p className="text-sm text-blue-700">
           <strong>WebSocket:</strong> /ws-chat
