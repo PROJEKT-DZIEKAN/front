@@ -85,7 +85,19 @@ export default function PersonRecognition() {
   const startCamera = async () => {
     try {
       setError(null);
-      setDebug('Requesting camera...');
+      setDebug('🔍 Starting camera initialization...');
+      console.log('🎥 PersonRecognition: Starting camera...');
+      
+      // Sprawdź czy getUserMedia jest dostępne
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setDebug('❌ getUserMedia not supported');
+        setError('getUserMedia nie jest obsługiwane w tej przeglądarce');
+        return;
+      }
+      
+      setDebug('📱 Requesting camera permissions...');
+      console.log('🎥 PersonRecognition: Requesting getUserMedia...');
+      
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: 'user',
@@ -94,65 +106,152 @@ export default function PersonRecognition() {
         }
       });
       
+      console.log('✅ PersonRecognition: getUserMedia success:', mediaStream);
+      console.log('📊 Stream tracks:', mediaStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState })));
+      
       setStream(mediaStream);
       setIsCameraOpen(true);
+      setDebug('✅ Stream obtained, setting camera open...');
+      
+      // Sprawdź czy video element istnieje
+      if (!videoRef.current) {
+        setDebug('❌ Video element not found!');
+        setError('Element video nie został znaleziony');
+        return;
+      }
+      
+      const video = videoRef.current;
+      console.log('📺 Video element found:', {
+        tagName: video.tagName,
+        readyState: video.readyState,
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+        srcObject: video.srcObject,
+        muted: video.muted,
+        playsInline: video.playsInline,
+        autoPlay: video.autoplay
+      });
+      
+      setDebug('🔗 Assigning stream to video element...');
+      video.srcObject = mediaStream;
+      video.muted = true;
+      video.playsInline = true;
+      
+      console.log('📺 After assignment:', {
+        srcObject: video.srcObject,
+        muted: video.muted,
+        playsInline: video.playsInline
+      });
+      
+      // Sprawdź wymiary po przypisaniu
+      setTimeout(() => {
+        console.log('📏 Video dimensions after 100ms:', {
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+          clientWidth: video.clientWidth,
+          clientHeight: video.clientHeight,
+          offsetWidth: video.offsetWidth,
+          offsetHeight: video.offsetHeight
+        });
+        setDebug(`📏 Video size: ${video.videoWidth}x${video.videoHeight}, container: ${video.clientWidth}x${video.clientHeight}`);
+      }, 100);
+      
+      try {
+        setDebug('▶️ Attempting to play video...');
+        console.log('🎬 PersonRecognition: Attempting video.play()...');
+        await video.play();
+        setDebug('✅ Video playing successfully!');
+        console.log('✅ PersonRecognition: Video.play() success');
+        
+        // Sprawdź czy rzeczywiście odtwarza
+        setTimeout(() => {
+          console.log('📊 Video playback status after 500ms:', {
+            paused: video.paused,
+            ended: video.ended,
+            readyState: video.readyState,
+            videoWidth: video.videoWidth,
+            videoHeight: video.videoHeight,
+            currentTime: video.currentTime
+          });
+          setDebug(`📊 Playback: paused=${video.paused}, size=${video.videoWidth}x${video.videoHeight}, time=${video.currentTime.toFixed(2)}s`);
+        }, 500);
+        
+      } catch (playError) {
+        console.error('❌ PersonRecognition: Video.play() failed:', playError);
+        const errorMessage = playError instanceof Error ? playError.message : 'Unknown play error';
+        setDebug(`❌ Play failed: ${errorMessage}`);
+        
+        // Fallback na onloadedmetadata
+        setDebug('🔄 Setting up onloadedmetadata fallback...');
+        video.onloadedmetadata = async () => {
+          try {
+            console.log('📋 PersonRecognition: onloadedmetadata triggered');
+            setDebug('📋 Metadata loaded, attempting play...');
+            await video.play();
+            setDebug('✅ Video playing after metadata loaded!');
+            console.log('✅ PersonRecognition: Video.play() success after metadata');
+          } catch (metadataError) {
+            console.error('❌ PersonRecognition: Video.play() failed after metadata:', metadataError);
+            const errorMessage = metadataError instanceof Error ? metadataError.message : 'Unknown metadata error';
+            setDebug(`❌ Play failed after metadata: ${errorMessage}`);
+          }
+        };
+        
+        // Dodatkowy fallback na oncanplay
+        video.oncanplay = async () => {
+          try {
+            console.log('🎬 PersonRecognition: oncanplay triggered');
+            setDebug('🎬 Can play, attempting play...');
+            if (video.paused) {
+              await video.play();
+              setDebug('✅ Video playing after canplay!');
+            }
+          } catch (canplayError) {
+            console.error('❌ PersonRecognition: Video.play() failed after canplay:', canplayError);
+          }
+        };
+      }
+      
     } catch (err) {
+      console.error('❌ PersonRecognition: Camera error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown camera error';
+      setDebug(`❌ Camera error: ${errorMessage}`);
+      
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setError('Brak dostępu do kamery. Upewnij się, że przyznałeś uprawnienia w przeglądarce i że strona działa przez HTTPS.');
+      } else if (err instanceof DOMException && err.name === 'NotFoundError') {
+        setError('Nie znaleziono kamery w urządzeniu.');
+      } else if (err instanceof DOMException && err.name === 'NotReadableError') {
+        setError('Kamera jest używana przez inną aplikację.');
       } else {
-        setError('Nie można uzyskać dostępu do kamery. Sprawdź uprawnienia.');
+        setError(`Nie można uzyskać dostępu do kamery: ${errorMessage}`);
       }
-      console.error('Błąd dostępu do kamery:', err);
     }
   };
 
-  // Po zamontowaniu elementu <video> i po otrzymaniu MediaStream przypisz go i wystartuj odtwarzanie
-  useEffect(() => {
-    if (!isCameraOpen || !stream || !videoRef.current) return;
-    const video = videoRef.current;
-    const attach = async () => {
-      try {
-        setDebug('Attaching stream to video...');
-        video.setAttribute('playsinline', 'true');
-        video.muted = true;
-        video.srcObject = stream;
-        if (video.readyState >= 1) {
-          await video.play();
-        } else {
-          video.onloadedmetadata = async () => {
-            try {
-              await video.play();
-            } catch {}
-          };
-        }
-      } catch {
-        // ignore
-      }
-    };
-    void attach();
-
-    // Fallback retry if first play did not render frames
-    const retryTimer = setTimeout(() => {
-      if (video.videoWidth === 0 || video.videoHeight === 0) {
-        setDebug('Retry binding stream...');
-        void attach();
-      }
-    }, 1200);
-    return () => clearTimeout(retryTimer);
-  }, [isCameraOpen, stream]);
-
   // Zatrzymanie kamery
   const stopCamera = useCallback(() => {
+    console.log('🛑 PersonRecognition: Stopping camera...');
+    setDebug('🛑 Stopping camera...');
+    
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      console.log('🛑 Stopping stream tracks:', stream.getTracks().length);
+      stream.getTracks().forEach(track => {
+        console.log('🛑 Stopping track:', track.kind, track.readyState);
+        track.stop();
+      });
       setStream(null);
     }
+    
     setIsCameraOpen(false);
     setCapturedImage(null);
+    
     if (videoRef.current) {
-      // Oczyść źródło wideo
+      console.log('🛑 Clearing video srcObject');
       videoRef.current.srcObject = null;
     }
+    
+    setDebug('🛑 Camera stopped');
   }, [stream]);
 
   // Robienie zdjęcia
@@ -234,10 +333,26 @@ export default function PersonRecognition() {
 
   // Cleanup przy odmontowaniu komponentu
   useEffect(() => {
+    console.log('🔧 PersonRecognition: Component mounted');
+    setDebug('🔧 Component mounted');
+    
     return () => {
+      console.log('🔧 PersonRecognition: Component unmounting, cleaning up...');
       stopCamera();
     };
   }, [stopCamera]);
+  
+  // Debug info o stanie komponentu
+  useEffect(() => {
+    console.log('📊 PersonRecognition state changed:', {
+      isCameraOpen,
+      hasStream: !!stream,
+      hasVideo: !!videoRef.current,
+      capturedImage: !!capturedImage,
+      isLoading,
+      hasError: !!error
+    });
+  }, [isCameraOpen, stream, capturedImage, isLoading, error]);
 
   // Ikona statusu
   const getStatusIcon = (status: string) => {
@@ -259,8 +374,10 @@ export default function PersonRecognition() {
         <CameraIcon className="h-12 w-12 text-blue-500 mx-auto mb-4" />
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Rozpoznawanie Osób</h1>
         <p className="text-gray-600">Zrób zdjęcie lub prześlij plik aby rozpoznać osobę</p>
-        {process.env.NODE_ENV !== 'production' && debug && (
-          <p className="mt-1 text-xs text-gray-400">{debug}</p>
+        {debug && (
+          <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+            <p className="font-mono text-yellow-800">{debug}</p>
+          </div>
         )}
       </div>
 
@@ -273,7 +390,7 @@ export default function PersonRecognition() {
               autoPlay
               playsInline
               muted
-              className="absolute inset-0 w-full h-full object-cover"
+              className="w-full h-full object-cover"
               style={{ transform: 'scaleX(-1)' }} // Mirror effect
             />
             {!isCameraOpen && !capturedImage && (
