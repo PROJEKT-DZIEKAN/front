@@ -3,8 +3,7 @@
 import { ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { useEvents } from './EventContext';
-import { AuthContextType } from '@/types/auth';
-import { EventContextType } from '@/types/event';
+
 
 
 
