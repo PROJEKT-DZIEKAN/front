@@ -84,7 +84,7 @@ export default function AdminPanel() {
             <div className="space-y-2">
               <p><strong>Zalogowany jako:</strong> {user.firstName} {user.surname} (ID: {user.id})</p>
               <p><strong>Role:</strong> {user.roles?.join(', ') || 'Brak ról'}</p>
-              <p className="text-xs">Potrzebujesz roli "ADMIN" aby uzyskać dostęp do tego panelu</p>
+              <p className="text-xs">Potrzebujesz roli &quot;ADMIN&quot; aby uzyskać dostęp do tego panelu</p>
             </div>
           </Alert>
         )}

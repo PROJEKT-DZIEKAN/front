@@ -6,8 +6,7 @@ import { useEvents } from './EventContext';
 import { AuthContextType } from '@/types/auth';
 import { EventContextType } from '@/types/event';
 
-// Łączymy typy z obu kontekstów
-interface UserContextType extends AuthContextType, EventContextType {}
+
 
 // Re-exportujemy eventBus dla kompatybilności
 export { eventBus } from '@/utils/eventBus';

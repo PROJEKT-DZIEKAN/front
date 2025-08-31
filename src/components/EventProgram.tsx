@@ -2,11 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
-  ArrowPathIcon,
-  StarIcon,
-  CheckCircleIcon,
-  CalendarIcon,
-  UserGroupIcon
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { isBefore, isAfter, parseISO } from 'date-fns';
 import { useUser, eventBus } from '@/context/UserContext';
@@ -294,19 +290,7 @@ export default function EventProgram() {
     registerForEvent(eventId, !event.isRegistered);
   };
 
-  const getEventStatus = (event: Event) => {
-    const now = new Date();
-    const startTime = parseISO(event.startTime);
-    const endTime = parseISO(event.endTime);
 
-    if (isBefore(now, startTime)) {
-      return { status: 'upcoming', label: 'Nadchodzi', color: 'bg-blue-100 text-blue-700' };
-    } else if (isAfter(now, startTime) && isBefore(now, endTime)) {
-      return { status: 'live', label: 'Na żywo', color: 'bg-red-100 text-red-700' };
-    } else {
-      return { status: 'ended', label: 'Zakończone', color: 'bg-gray-100 text-gray-700' };
-    }
-  };
 
 
 
