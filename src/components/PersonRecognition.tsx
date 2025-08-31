@@ -1,6 +1,7 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
+import Image from 'next/image';
 import { CameraIcon, PhotoIcon, CloudArrowUpIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 // Adres URL Twojego API, który będzie używany do rozpoznawania
@@ -94,7 +95,7 @@ export default function PersonRecognition() {
           status: 'error',
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Błąd połączenia z API:', err);
       setError('Błąd połączenia z API. Upewnij się, że serwer działa.');
       setRecognitionResult({
@@ -266,9 +267,11 @@ export default function PersonRecognition() {
             </button>
             <h2 className="text-2xl font-bold text-gray-900">Podgląd zdjęcia</h2>
             {capturedImage && (
-              <img
+              <Image
                 src={URL.createObjectURL(capturedImage)}
                 alt="Podgląd zrobionego zdjęcia"
+                width={400}
+                height={300}
                 className="rounded-lg border-2 border-gray-300 w-full h-auto"
                 style={{ transform: 'scaleX(-1)' }}
               />
