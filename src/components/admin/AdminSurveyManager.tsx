@@ -401,7 +401,7 @@ export default function AdminSurveyManager() {
                 {processing ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    <span>Zapisywanie...</span>
+                    <span>Zapisywanie.</span>
                   </>
                 ) : (
                   <span>{editingSurvey ? 'Zaktualizuj' : 'Utwórz'} ankietę</span>
