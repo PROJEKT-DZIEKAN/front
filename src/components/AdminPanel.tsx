@@ -5,7 +5,9 @@ import {
   CogIcon,
   PlusIcon,
   XMarkIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  CalendarIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 import { useUser } from '@/context/UserContext';
 import { Event, CreateEventRequest } from '@/types/event';
@@ -14,9 +16,11 @@ import Alert from './ui/Alert';
 import SectionHeader from './ui/SectionHeader';
 import AdminEventForm from './admin/AdminEventForm';
 import AdminEventList from './admin/AdminEventList';
+import AdminSurveyManager from './admin/AdminSurveyManager';
 
 export default function AdminPanel() {
   const { user, isAdmin, createEvent, updateEvent, deleteEvent, getAllEvents } = useUser();
+  const [activeTab, setActiveTab] = useState<'events' | 'surveys'>('events');
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -177,13 +181,18 @@ export default function AdminPanel() {
     });
   };
 
+  const adminTabs = [
+    { id: 'events' as const, label: 'Wydarzenia', icon: CalendarIcon },
+    { id: 'surveys' as const, label: 'Ankiety', icon: ChartBarIcon }
+  ];
+
   return (
     <div className="p-4 space-y-6">
       {/* Header */}
       <SectionHeader
         icon={<CogIcon className="h-12 w-12 text-blue-500 mx-auto" />}
         title="Panel Administratora"
-        subtitle="Zarządzaj wydarzeniami"
+        subtitle="Zarządzaj systemem"
         action={
           <div className="mt-2 space-y-1">
             <p className="text-sm text-green-600">
@@ -196,58 +205,89 @@ export default function AdminPanel() {
         }
       />
 
-      {/* Przycisk dodawania nowego eventu */}
-      {!showAddForm && (
-        <div className="text-center space-y-3">
-          <Button
-            onClick={() => setShowAddForm(true)}
-            variant="primary"
-            size="lg"
-            icon={<PlusIcon className="h-5 w-5" />}
-            className="mx-auto"
-          >
-            Dodaj nowy event
-          </Button>
-          
-          <Button
-            onClick={loadEvents}
-            disabled={isLoading}
-            loading={isLoading}
-            variant="secondary"
-            icon={<ArrowPathIcon className="h-4 w-4" />}
-            className="mx-auto"
-          >
-            Załaduj eventy z serwera
-          </Button>
+      {/* Tabs Navigation */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="flex border-b border-gray-200">
+          {adminTabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 flex items-center justify-center space-x-2 px-4 py-3 text-sm font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <Icon className="h-5 w-5" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
-      )}
 
-      {/* Wyświetlanie błędu */}
-      {error && (
-        <Alert type="error" title="Błąd">
-          {error}
-        </Alert>
-      )}
+        <div className="p-6">
+          {activeTab === 'events' ? (
+            <div className="space-y-6">
+              {/* Przycisk dodawania nowego eventu */}
+              {!showAddForm && (
+                <div className="text-center space-y-3">
+                  <Button
+                    onClick={() => setShowAddForm(true)}
+                    variant="primary"
+                    size="lg"
+                    icon={<PlusIcon className="h-5 w-5" />}
+                    className="mx-auto"
+                  >
+                    Dodaj nowy event
+                  </Button>
+                  
+                  <Button
+                    onClick={loadEvents}
+                    disabled={isLoading}
+                    loading={isLoading}
+                    variant="secondary"
+                    icon={<ArrowPathIcon className="h-4 w-4" />}
+                    className="mx-auto"
+                  >
+                    Załaduj eventy z serwera
+                  </Button>
+                </div>
+              )}
 
-      {/* Formularz dodawania/edycji eventu */}
-      {showAddForm && (
-        <AdminEventForm
-          editingEvent={editingEvent}
-          formData={formData}
-          isLoading={isLoading}
-          onInputChange={handleInputChange}
-          onSubmit={handleSubmit}
-          onCancel={cancelEdit}
-        />
-      )}
+              {/* Wyświetlanie błędu */}
+              {error && (
+                <Alert type="error" title="Błąd">
+                  {error}
+                </Alert>
+              )}
 
-      {/* Lista eventów */}
-      <AdminEventList
-        events={events}
-        isLoading={isLoading && !showAddForm}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+              {/* Formularz dodawania/edycji eventu */}
+              {showAddForm && (
+                <AdminEventForm
+                  editingEvent={editingEvent}
+                  formData={formData}
+                  isLoading={isLoading}
+                  onInputChange={handleInputChange}
+                  onSubmit={handleSubmit}
+                  onCancel={cancelEdit}
+                />
+              )}
+
+              {/* Lista eventów */}
+              <AdminEventList
+                events={events}
+                isLoading={isLoading && !showAddForm}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            </div>
+          ) : (
+            <AdminSurveyManager />
+          )}
+        </div>
+      </div>
     </div>
   );
 } 
