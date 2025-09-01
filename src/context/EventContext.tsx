@@ -117,6 +117,13 @@ export function EventProvider({ children }: { children: ReactNode }) {
       
       const response = await axios.get(`${API_BASE_URL}/api/events`, { headers });
       console.log('📥 Odpowiedź:', response.data);
+      
+      // Sprawdzenie czy response.data jest tablicą
+      if (!Array.isArray(response.data)) {
+        console.error('❌ API zwróciło nieprawidłowe dane eventów:', response.data);
+        throw new Error('API zwróciło nieprawidłowe dane - oczekiwano tablicy eventów');
+      }
+      
       return response.data;
     } catch (error) {
       console.error('❌ Błąd pobierania eventów:', error);

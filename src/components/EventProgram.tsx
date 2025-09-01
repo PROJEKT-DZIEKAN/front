@@ -69,8 +69,14 @@ export default function EventProgram() {
       const apiEvents = await getAllEvents();
       console.log('📦 Otrzymane eventy z API:', apiEvents);
       
+      // Sprawdzenie czy apiEvents jest tablicą
+      if (!Array.isArray(apiEvents)) {
+        console.error('❌ API zwróciło nieprawidłowe dane:', apiEvents);
+        throw new Error('API zwróciło nieprawidłowe dane - oczekiwano tablicy');
+      }
+
       // Konwersja eventów z API do formatu frontendowego
-      const convertedEvents: Event[] = (apiEvents as ApiEvent[] || []).map((event: ApiEvent) => ({
+      const convertedEvents: Event[] = apiEvents.map((event: ApiEvent) => ({
         ...event,
         // Dodanie frontendowych pól
         currentParticipants: event.registrations?.length || 0,

@@ -62,6 +62,13 @@ export const getAllSurveys = async (): Promise<Survey[]> => {
     if (!headers) throw new Error('Brak autoryzacji');
 
     const response = await apiClient.get('/api/surveys', { headers });
+    
+    // Sprawdzenie czy response.data jest tablicą
+    if (!Array.isArray(response.data)) {
+      console.error('❌ API zwróciło nieprawidłowe dane ankiet:', response.data);
+      throw new Error('API zwróciło nieprawidłowe dane - oczekiwano tablicy ankiet');
+    }
+    
     return response.data;
   } catch (error) {
     handleAxiosError(error, 'pobierania ankiet');

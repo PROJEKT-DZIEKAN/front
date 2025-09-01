@@ -26,10 +26,20 @@ export const useSurveys = () => {
     setError(null);
     try {
       const surveysData = await getAllSurveys();
+      
+      // Sprawdzenie czy surveysData jest tablicą
+      if (!Array.isArray(surveysData)) {
+        console.error('❌ API zwróciło nieprawidłowe dane ankiet:', surveysData);
+        setError('API zwróciło nieprawidłowe dane - oczekiwano tablicy ankiet');
+        setSurveys([]);
+        return;
+      }
+      
       setSurveys(surveysData);
     } catch (err) {
       console.error('Błąd pobierania ankiet:', err);
       setError('Nie udało się pobrać ankiet');
+      setSurveys([]);
     } finally {
       setLoading(false);
     }

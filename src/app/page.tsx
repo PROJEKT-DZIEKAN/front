@@ -37,6 +37,8 @@ import DigitalCard from '@/components/DigitalCard';
 import Tutorial from '@/components/Tutorial';
 import QRLoginPopup from '@/components/QRLoginPopup';
 import AdminPanel from '@/components/AdminPanel';
+import SurveyTestPanel from '@/components/SurveyTestPanel';
+import SimpleSurveyTest from '@/components/SimpleSurveyTest';
 
 
 
@@ -105,6 +107,8 @@ export default function Home() {
     // Dodaję admin tab tylko dla adminów
     if (isAdmin) {
       baseItems.push({ id: 'admin', label: 'Admin', icon: CogIcon });
+      baseItems.push({ id: 'survey-test', label: 'Test Ankiet', icon: ChartBarIcon });
+      baseItems.push({ id: 'simple-survey', label: 'Prosty Test', icon: ChartBarIcon });
     }
 
     return baseItems;
@@ -139,6 +143,10 @@ export default function Home() {
         return <DigitalCard />;
       case 'admin':
         return <AdminPanel />;
+      case 'survey-test':
+        return <SurveyTestPanel />;
+      case 'simple-survey':
+        return <SimpleSurveyTest />;
       default:
         return <Dashboard onNavigate={setActiveTab} />;
     }

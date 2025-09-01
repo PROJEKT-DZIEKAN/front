@@ -39,10 +39,20 @@ export default function AdminPanel() {
     setIsLoading(true);
     try {
       const eventsData = await getAllEvents();
+      
+      // Sprawdzenie czy eventsData jest tablicą
+      if (!Array.isArray(eventsData)) {
+        console.error('❌ API zwróciło nieprawidłowe dane eventów:', eventsData);
+        setError('API zwróciło nieprawidłowe dane - oczekiwano tablicy eventów');
+        setEvents([]);
+        return;
+      }
+      
       setEvents(eventsData);
     } catch (error) {
       console.error('Błąd ładowania eventów:', error);
       setError('Nie można załadować eventów');
+      setEvents([]);
     } finally {
       setIsLoading(false);
     }
