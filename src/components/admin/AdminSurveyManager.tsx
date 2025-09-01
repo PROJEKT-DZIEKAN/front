@@ -10,7 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useSurveys } from '@/hooks/useSurveys';
 import { useAuth } from '@/hooks/useAuth';
-import { Survey, CreateSurveyRequest, SurveyQuestion } from '@/types/survey';
+import { Survey, CreateSurveyRequest } from '@/types/survey';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
@@ -83,7 +83,7 @@ export default function AdminSurveyManager() {
     }));
   };
 
-  const updateQuestion = (index: number, field: keyof QuestionFormData, value: any) => {
+  const updateQuestion = (index: number, field: keyof QuestionFormData, value: string | 'SINGLE' | 'MULTIPLE') => {
     setFormData(prev => ({
       ...prev,
       questions: prev.questions.map((q, i) => 
@@ -421,7 +421,7 @@ export default function AdminSurveyManager() {
         >
           <div className="space-y-4">
             <p className="text-gray-600">
-              Czy na pewno chcesz usunąć ankietę "{deletingSurvey.title}"? 
+              Czy na pewno chcesz usunąć ankietę &quot;{deletingSurvey.title}&quot;? 
               Ta operacja jest nieodwracalna.
             </p>
             
