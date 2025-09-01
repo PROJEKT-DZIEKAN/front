@@ -1,14 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
   ChartBarIcon,
   PlusIcon, 
   PencilIcon, 
   TrashIcon,
-  ExclamationTriangleIcon,
-  CheckIcon,
-  XMarkIcon
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { useSurveys } from '@/hooks/useSurveys';
 import { useAuth } from '@/hooks/useAuth';
