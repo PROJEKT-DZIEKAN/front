@@ -117,13 +117,13 @@ export default function Surveys() {
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Dostępne Ankiety</h2>
         
-        {surveys.length === 0 ? (
+        {!Array.isArray(surveys) || surveys.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500">Brak dostępnych ankiet</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {surveys.map((survey) => (
+            {Array.isArray(surveys) && surveys.map((survey) => (
               <div key={survey.id} className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <h3 className="font-medium text-blue-900">{survey.title}</h3>
                 <p className="text-sm text-blue-700 mt-1">{survey.description}</p>

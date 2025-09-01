@@ -66,11 +66,11 @@ export default function AdminSurveyManager() {
     setFormData({
       title: survey.title,
       description: survey.description,
-      questions: survey.questions.map(q => ({
+      questions: Array.isArray(survey.questions) ? survey.questions.map(q => ({
         text: q.text,
         type: q.type,
-        options: q.surveyOptions.map(o => o.text)
-      }))
+        options: Array.isArray(q.surveyOptions) ? q.surveyOptions.map(o => o.text) : []
+      })) : []
     });
     setEditingSurvey(survey);
     setShowCreateModal(true);
@@ -224,7 +224,7 @@ export default function AdminSurveyManager() {
       )}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        {surveys.length === 0 ? (
+        {!Array.isArray(surveys) || surveys.length === 0 ? (
           <div className="p-12 text-center">
             <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">Brak ankiet</h3>
@@ -233,14 +233,14 @@ export default function AdminSurveyManager() {
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {surveys.map((survey) => (
+            {Array.isArray(surveys) && surveys.map((survey) => (
               <div key={survey.id} className="p-6">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <h3 className="text-lg font-medium text-gray-900 mb-2">{survey.title}</h3>
                     <p className="text-gray-600 mb-3">{survey.description}</p>
                     <div className="flex items-center space-x-4 text-sm text-gray-500">
-                      <span>{survey.questions.length} pytań</span>
+                      <span>{Array.isArray(survey.questions) ? survey.questions.length : 0} pytań</span>
                       {survey.createdAt && (
                         <span>Utworzono: {new Date(survey.createdAt).toLocaleDateString('pl-PL')}</span>
                       )}
