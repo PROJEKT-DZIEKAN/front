@@ -70,7 +70,7 @@ export default function EventProgram() {
       console.log('📦 Otrzymane eventy z API:', apiEvents);
       
       // Konwersja eventów z API do formatu frontendowego
-      const convertedEvents: Event[] = (apiEvents as ApiEvent[]).map((event: ApiEvent) => ({
+      const convertedEvents: Event[] = (apiEvents as ApiEvent[] || []).map((event: ApiEvent) => ({
         ...event,
         // Dodanie frontendowych pól
         currentParticipants: event.registrations?.length || 0,
