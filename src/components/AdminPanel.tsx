@@ -7,7 +7,8 @@ import {
   XMarkIcon,
   ArrowPathIcon,
   CalendarIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
 import { useUser } from '@/context/UserContext';
 import { Event, CreateEventRequest } from '@/types/event';
@@ -17,10 +18,11 @@ import SectionHeader from './ui/SectionHeader';
 import AdminEventForm from './admin/AdminEventForm';
 import AdminEventList from './admin/AdminEventList';
 import AdminSurveyManager from './admin/AdminSurveyManager';
+import AdminGroupManager from './admin/AdminGroupManager';
 
 export default function AdminPanel() {
   const { user, isAdmin, createEvent, updateEvent, deleteEvent, getAllEvents } = useUser();
-  const [activeTab, setActiveTab] = useState<'events' | 'surveys'>('events');
+  const [activeTab, setActiveTab] = useState<'events' | 'surveys' | 'groups'>('events');
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -193,7 +195,8 @@ export default function AdminPanel() {
 
   const adminTabs = [
     { id: 'events' as const, label: 'Wydarzenia', icon: CalendarIcon },
-    { id: 'surveys' as const, label: 'Ankiety', icon: ChartBarIcon }
+    { id: 'surveys' as const, label: 'Ankiety', icon: ChartBarIcon },
+    { id: 'groups' as const, label: 'Grupy', icon: UserGroupIcon }
   ];
 
   return (
@@ -293,8 +296,10 @@ export default function AdminPanel() {
                 onDelete={handleDelete}
               />
             </div>
-          ) : (
+          ) : activeTab === 'surveys' ? (
             <AdminSurveyManager />
+          ) : (
+            <AdminGroupManager />
           )}
         </div>
       </div>

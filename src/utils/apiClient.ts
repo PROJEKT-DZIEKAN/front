@@ -1,6 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import { API_BASE_URL, getAuthHeaders } from './authUtils';
 import { Survey, CreateSurveyRequest, UpdateSurveyRequest, SurveyAnswer } from '@/types/survey';
+import { Group, CreateGroupRequest, UpdateGroupRequest } from '@/types/group';
 
 // Interface dla błędu axios
 export interface AxiosErrorResponse {
@@ -142,5 +143,231 @@ export const submitSurveyAnswers = async (surveyId: number, answers: SurveyAnswe
   } catch (error) {
     handleAxiosError(error, `przesyłania odpowiedzi na ankietę ${surveyId}`);
     return false;
+  }
+};
+
+// === GROUP API FUNCTIONS ===
+
+// Funkcja do pobierania wszystkich grup
+export const getAllGroups = async (): Promise<Group[]> => {
+  try {
+    const headers = getAuthHeaders();
+    if (!headers) throw new Error('Brak autoryzacji');
+
+    // Używamy bezpośrednio endpointu z Heroku
+    const response = await fetch('https://dziekan-48de5f4dea14.herokuapp.com/api/groups/all', {
+      method: 'GET',
+      headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    if (!Array.isArray(data)) {
+      console.error('❌ API zwróciło nieprawidłowe dane grup:', data);
+      throw new Error('API zwróciło nieprawidłowe dane - oczekiwano tablicy grup');
+    }
+    
+    return data;
+  } catch (error) {
+    handleAxiosError(error, 'pobierania grup');
+    throw error;
+  }
+};
+
+// Funkcja do pobierania pojedynczej grupy
+export const getGroupById = async (groupId: number): Promise<Group> => {
+  try {
+    const headers = getAuthHeaders();
+    if (!headers) throw new Error('Brak autoryzacji');
+
+    const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/groups/${groupId}`, {
+      method: 'GET',
+      headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    handleAxiosError(error, `pobierania grupy ${groupId}`);
+    throw error;
+  }
+};
+
+// Funkcja do tworzenia nowej grupy (tylko admin/organizator)
+export const createGroup = async (groupRequest: CreateGroupRequest): Promise<Group> => {
+  try {
+    const headers = getAuthHeaders();
+    if (!headers) throw new Error('Brak autoryzacji');
+
+    const group = {
+      name: groupRequest.name,
+      description: groupRequest.description || '',
+      maxParticipants: groupRequest.maxParticipants || null,
+      createdAt: new Date().toISOString(),
+      organizer: { id: groupRequest.organizerId }
+    };
+
+    const response = await fetch('https://dziekan-48de5f4dea14.herokuapp.com/api/groups/create', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(group)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    handleAxiosError(error, 'tworzenia grupy');
+    throw error;
+  }
+};
+
+// Funkcja do aktualizacji grupy (tylko admin/organizator)
+export const updateGroup = async (groupId: number, groupRequest: UpdateGroupRequest): Promise<Group> => {
+  try {
+    const headers = getAuthHeaders();
+    if (!headers) throw new Error('Brak autoryzacji');
+
+    const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/groups/update/${groupId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(groupRequest)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    handleAxiosError(error, `aktualizacji grupy ${groupId}`);
+    throw error;
+  }
+};
+
+// Funkcja do usuwania grupy (tylko admin/organizator)
+export const deleteGroup = async (groupId: number): Promise<void> => {
+  try {
+    const headers = getAuthHeaders();
+    if (!headers) throw new Error('Brak autoryzacji');
+
+    const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/groups/delete/${groupId}`, {
+      method: 'DELETE',
+      headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+  } catch (error) {
+    handleAxiosError(error, `usuwania grupy ${groupId}`);
+    throw error;
+  }
+};
+
+// Funkcja do dołączania do grupy
+export const joinGroup = async (groupId: number, userId: number): Promise<void> => {
+  try {
+    const headers = getAuthHeaders();
+    if (!headers) throw new Error('Brak autoryzacji');
+
+    const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/groups/add-participant/${groupId}/${userId}`, {
+      method: 'POST',
+      headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+  } catch (error) {
+    handleAxiosError(error, `dołączania do grupy ${groupId}`);
+    throw error;
+  }
+};
+
+// Funkcja do opuszczania grupy
+export const leaveGroup = async (groupId: number, userId: number): Promise<void> => {
+  try {
+    const headers = getAuthHeaders();
+    if (!headers) throw new Error('Brak autoryzacji');
+
+    const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/groups/remove-participant/${groupId}/${userId}`, {
+      method: 'DELETE',
+      headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+  } catch (error) {
+    handleAxiosError(error, `opuszczania grupy ${groupId}`);
+    throw error;
+  }
+};
+
+// Funkcja do pobierania grup użytkownika
+export const getMyGroups = async (userId: number): Promise<Group[]> => {
+  try {
+    const headers = getAuthHeaders();
+    if (!headers) throw new Error('Brak autoryzacji');
+
+    const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/groups/by-user/${userId}`, {
+      method: 'GET',
+      headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    if (!Array.isArray(data)) {
+      console.error('❌ API zwróciło nieprawidłowe dane grup użytkownika:', data);
+      throw new Error('API zwróciło nieprawidłowe dane - oczekiwano tablicy grup');
+    }
+    
+    return data;
+  } catch (error) {
+    handleAxiosError(error, `pobierania grup użytkownika ${userId}`);
+    throw error;
+  }
+};
+
+// Funkcja do wyszukiwania grup po nazwie
+export const searchGroupsByName = async (name: string): Promise<Group[]> => {
+  try {
+    const headers = getAuthHeaders();
+    if (!headers) throw new Error('Brak autoryzacji');
+
+    const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/groups/by-title?title=${encodeURIComponent(name)}`, {
+      method: 'GET',
+      headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    if (!Array.isArray(data)) {
+      console.error('❌ API zwróciło nieprawidłowe dane wyszukiwania grup:', data);
+      throw new Error('API zwróciło nieprawidłowe dane - oczekiwano tablicy grup');
+    }
+    
+    return data;
+  } catch (error) {
+    handleAxiosError(error, `wyszukiwania grup po nazwie "${name}"`);
+    throw error;
   }
 };
