@@ -16,8 +16,6 @@ import {
   getAllGroups, 
   getMyGroups, 
   createGroup, 
-  joinGroup, 
-  leaveGroup, 
   deleteGroup,
   searchGroupsByName 
 } from '@/utils/apiClient';
@@ -29,7 +27,7 @@ import Modal from '@/components/ui/Modal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function Groups() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isAdmin } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
   const [myGroups, setMyGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,10 +115,25 @@ export default function Groups() {
     if (!user) return;
 
     try {
-      await joinGroup(groupId, user.id);
+      setLoading(true);
+      const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/groups/add-participant/${groupId}/${user.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       await loadGroups();
     } catch (error) {
       console.error('Błąd dołączania do grupy:', error);
+      alert('Nie udało się dołączyć do grupy. Sprawdź czy masz dostęp.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -129,10 +142,25 @@ export default function Groups() {
     if (!user) return;
 
     try {
-      await leaveGroup(groupId, user.id);
+      setLoading(true);
+      const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/groups/remove-participant/${groupId}/${user.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       await loadGroups();
     } catch (error) {
       console.error('Błąd opuszczania grupy:', error);
+      alert('Nie udało się opuścić grupy.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -207,11 +235,13 @@ export default function Groups() {
             </Button>
           </div>
           
-          {/* Przycisk tworzenia grupy */}
-          <Button onClick={() => setShowCreateModal(true)}>
-            <PlusIcon className="h-4 w-4 mr-2" />
-            Utwórz grupę
-          </Button>
+          {/* Przycisk tworzenia grupy - tylko dla adminów */}
+          {isAdmin && (
+            <Button onClick={() => setShowCreateModal(true)}>
+              <PlusIcon className="h-4 w-4 mr-2" />
+              Utwórz grupę
+            </Button>
+          )}
         </div>
 
         {/* Zakładki */}

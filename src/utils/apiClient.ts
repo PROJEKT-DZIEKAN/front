@@ -2,6 +2,7 @@ import axios, { AxiosError } from 'axios';
 import { API_BASE_URL, getAuthHeaders } from './authUtils';
 import { Survey, CreateSurveyRequest, UpdateSurveyRequest, SurveyAnswer } from '@/types/survey';
 import { Group, CreateGroupRequest, UpdateGroupRequest } from '@/types/group';
+import { User } from '@/types/auth';
 
 // Interface dla błędu axios
 export interface AxiosErrorResponse {
@@ -368,6 +369,88 @@ export const searchGroupsByName = async (name: string): Promise<Group[]> => {
     return data;
   } catch (error) {
     handleAxiosError(error, `wyszukiwania grup po nazwie "${name}"`);
+    throw error;
+  }
+};
+
+// === USER API FUNCTIONS ===
+
+// Funkcja do pobierania wszystkich użytkowników (tylko admin)
+export const getAllUsers = async (): Promise<User[]> => {
+  try {
+    const headers = getAuthHeaders();
+    if (!headers) throw new Error('Brak autoryzacji');
+
+    const response = await fetch('https://dziekan-48de5f4dea14.herokuapp.com/api/users/all', {
+      method: 'GET',
+      headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    if (!Array.isArray(data)) {
+      console.error('❌ API zwróciło nieprawidłowe dane użytkowników:', data);
+      throw new Error('API zwróciło nieprawidłowe dane - oczekiwano tablicy użytkowników');
+    }
+    
+    return data;
+  } catch (error) {
+    handleAxiosError(error, 'pobierania użytkowników');
+    throw error;
+  }
+};
+
+// Funkcja do pobierania użytkownika po ID
+export const getUserById = async (userId: number): Promise<User> => {
+  try {
+    const headers = getAuthHeaders();
+    if (!headers) throw new Error('Brak autoryzacji');
+
+    const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/users/${userId}`, {
+      method: 'GET',
+      headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    handleAxiosError(error, `pobierania użytkownika ${userId}`);
+    throw error;
+  }
+};
+
+// Funkcja do wyszukiwania użytkowników po nazwie
+export const searchUsersByName = async (name: string): Promise<User[]> => {
+  try {
+    const headers = getAuthHeaders();
+    if (!headers) throw new Error('Brak autoryzacji');
+
+    const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/users/search?name=${encodeURIComponent(name)}`, {
+      method: 'GET',
+      headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    if (!Array.isArray(data)) {
+      console.error('❌ API zwróciło nieprawidłowe dane wyszukiwania użytkowników:', data);
+      throw new Error('API zwróciło nieprawidłowe dane - oczekiwano tablicy użytkowników');
+    }
+    
+    return data;
+  } catch (error) {
+    handleAxiosError(error, `wyszukiwania użytkowników po nazwie "${name}"`);
     throw error;
   }
 };

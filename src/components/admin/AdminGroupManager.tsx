@@ -11,12 +11,15 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/context/AuthContext';
 import { Group, CreateGroupRequest, UpdateGroupRequest } from '@/types/group';
+import { User } from '@/types/auth';
 import { 
   getAllGroups, 
   createGroup, 
   updateGroup, 
   deleteGroup,
-  searchGroupsByName
+  searchGroupsByName,
+  getAllUsers,
+  searchUsersByName
 } from '@/utils/apiClient';
 import { groupManager } from '@/utils/groupManager';
 import Button from '@/components/ui/Button';
@@ -29,10 +32,13 @@ import Alert from '@/components/ui/Alert';
 export default function AdminGroupManager() {
   const { user, isAuthenticated } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [userSearchTerm, setUserSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +75,20 @@ export default function AdminGroupManager() {
     }
   }, [isAuthenticated]);
 
+  // Ładowanie wszystkich użytkowników
+  const loadUsers = useCallback(async () => {
+    if (!isAuthenticated) return;
+    
+    try {
+      setError(null);
+      const allUsers = await getAllUsers();
+      setUsers(allUsers);
+    } catch (error) {
+      console.error('Błąd ładowania użytkowników:', error);
+      setError('Nie można załadować użytkowników');
+    }
+  }, [isAuthenticated]);
+
   // Wyszukiwanie grup
   const handleSearch = async () => {
     if (!searchTerm.trim()) {
@@ -86,6 +106,23 @@ export default function AdminGroupManager() {
       setError('Błąd wyszukiwania grup');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Wyszukiwanie użytkowników
+  const handleUserSearch = async () => {
+    if (!userSearchTerm.trim()) {
+      loadUsers();
+      return;
+    }
+
+    try {
+      setError(null);
+      const searchResults = await searchUsersByName(userSearchTerm);
+      setUsers(searchResults);
+    } catch (error) {
+      console.error('Błąd wyszukiwania użytkowników:', error);
+      setError('Błąd wyszukiwania użytkowników');
     }
   };
 
@@ -158,6 +195,73 @@ export default function AdminGroupManager() {
     }
   };
 
+  // Dodawanie użytkownika do grupy
+  const handleAddUserToGroup = async (userId: number) => {
+    if (!selectedGroup) return;
+
+    try {
+      setLoading(true);
+      // Używamy API do dodania uczestnika
+      const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/groups/add-participant/${selectedGroup.id}/${userId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      await loadGroups();
+      setShowAddUserModal(false);
+    } catch (error) {
+      console.error('Błąd dodawania użytkownika do grupy:', error);
+      setError('Błąd dodawania użytkownika do grupy');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Usuwanie użytkownika z grupy
+  const handleRemoveUserFromGroup = async (userId: number) => {
+    if (!selectedGroup) return;
+
+    if (!confirm('Czy na pewno chcesz usunąć tego użytkownika z grupy?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/groups/remove-participant/${selectedGroup.id}/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      await loadGroups();
+    } catch (error) {
+      console.error('Błąd usuwania użytkownika z grupy:', error);
+      setError('Błąd usuwania użytkownika z grupy');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Otwieranie modalu dodawania użytkownika
+  const openAddUserModal = (group: Group) => {
+    setSelectedGroup(group);
+    setShowAddUserModal(true);
+    loadUsers();
+  };
+
   // Otwieranie modalu edycji
   const openEditModal = (group: Group) => {
     setSelectedGroup(group);
@@ -178,8 +282,9 @@ export default function AdminGroupManager() {
   useEffect(() => {
     if (isAuthenticated) {
       loadGroups();
+      loadUsers();
     }
-  }, [isAuthenticated, loadGroups]);
+  }, [isAuthenticated, loadGroups, loadUsers]);
 
   if (!isAuthenticated) {
     return (
@@ -324,6 +429,14 @@ export default function AdminGroupManager() {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => openAddUserModal(group)}
+                    className="text-green-600 hover:text-green-700"
+                  >
+                    <UserIcon className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => openEditModal(group)}
                   >
                     <PencilIcon className="h-4 w-4" />
@@ -435,6 +548,77 @@ export default function AdminGroupManager() {
         </div>
       </Modal>
 
+      {/* Modal dodawania użytkownika do grupy */}
+      <Modal
+        isOpen={showAddUserModal}
+        onClose={() => setShowAddUserModal(false)}
+        title={`Dodaj użytkownika do grupy: ${selectedGroup?.name}`}
+      >
+        <div className="space-y-4">
+          {/* Wyszukiwarka użytkowników */}
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Input
+                placeholder="Wyszukaj użytkowników..."
+                value={userSearchTerm}
+                onChange={(e) => setUserSearchTerm(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleUserSearch()}
+              />
+            </div>
+            <Button onClick={handleUserSearch} variant="outline">
+              <MagnifyingGlassIcon className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Lista użytkowników */}
+          <div className="max-h-60 overflow-y-auto">
+            {users.length === 0 ? (
+              <p className="text-sm text-gray-600 text-center py-4">
+                {userSearchTerm ? 'Nie znaleziono użytkowników' : 'Ładowanie użytkowników...'}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {users
+                  .filter(user => !selectedGroup?.participants.some(p => p.id === user.id))
+                  .map((user) => (
+                    <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center space-x-3">
+                        <UserIcon className="h-5 w-5 text-gray-500" />
+                        <div>
+                          <div className="font-medium text-sm">
+                            {user.firstName} {user.surname}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            ID: {user.id}
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleAddUserToGroup(user.id)}
+                        disabled={loading}
+                      >
+                        Dodaj
+                      </Button>
+                    </div>
+                  ))}
+                {users.filter(user => !selectedGroup?.participants.some(p => p.id === user.id)).length === 0 && (
+                  <p className="text-sm text-gray-600 text-center py-4">
+                    Wszyscy użytkownicy są już członkami tej grupy
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowAddUserModal(false)}>
+              Zamknij
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Modal szczegółów grupy */}
       <Modal
         isOpen={showDetailsModal}
@@ -488,7 +672,17 @@ export default function AdminGroupManager() {
                           {participant.firstName} {participant.surname}
                         </span>
                       </div>
-                      <span className="text-xs text-gray-500">ID: {participant.id}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">ID: {participant.id}</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRemoveUserFromGroup(participant.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          Usuń
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -496,6 +690,13 @@ export default function AdminGroupManager() {
             </div>
 
             <div className="flex gap-2 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => openAddUserModal(selectedGroup)}
+              >
+                <UserIcon className="h-4 w-4 mr-2" />
+                Dodaj użytkownika
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => openEditModal(selectedGroup)}
