@@ -284,8 +284,23 @@ export default function AdminGroupManager() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      loadGroups();
-      loadUsers();
+      // Ładujemy grupy i użytkowników, ale nie pozwalamy na crash
+      const loadData = async () => {
+        try {
+          await loadGroups();
+        } catch (error) {
+          console.error('Błąd ładowania grup w admin panel:', error);
+        }
+        
+        try {
+          await loadUsers();
+        } catch (error) {
+          console.error('Błąd ładowania użytkowników w admin panel:', error);
+          // Nie blokujemy dalszego działania jeśli użytkownicy się nie załadowali
+        }
+      };
+      
+      loadData();
     }
   }, [isAuthenticated, loadGroups, loadUsers]);
 

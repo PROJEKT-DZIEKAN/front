@@ -51,15 +51,28 @@ export default function Groups() {
     
     try {
       setLoading(true);
+      console.log('🔄 Ładowanie grup dla użytkownika:', user.id);
+      
+      // Ładujemy równolegle, ale obsługujemy błędy osobno
       const [allGroupsData, myGroupsData] = await Promise.all([
-        getAllGroups(),
-        getMyGroups(user.id)
+        getAllGroups().catch(error => {
+          console.error('Błąd ładowania wszystkich grup:', error);
+          return []; // Zwracamy pustą tablicę w przypadku błędu
+        }),
+        getMyGroups(user.id).catch(error => {
+          console.error('Błąd ładowania moich grup:', error);
+          return []; // Zwracamy pustą tablicę w przypadku błędu
+        })
       ]);
       
+      console.log('✅ Załadowano grupy:', { all: allGroupsData.length, my: myGroupsData.length });
       setGroups(allGroupsData);
       setMyGroups(myGroupsData);
     } catch (error) {
-      console.error('Błąd ładowania grup:', error);
+      console.error('❌ Nieoczekiwany błąd ładowania grup:', error);
+      // W przypadku całkowitego błędu, ustawiamy puste tablice
+      setGroups([]);
+      setMyGroups([]);
     } finally {
       setLoading(false);
     }

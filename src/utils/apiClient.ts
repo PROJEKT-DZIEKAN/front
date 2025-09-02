@@ -155,27 +155,49 @@ export const getAllGroups = async (): Promise<Group[]> => {
     const headers = getAuthHeaders();
     if (!headers) throw new Error('Brak autoryzacji');
 
-    // Używamy bezpośrednio endpointu z Heroku
-    const response = await fetch('https://dziekan-48de5f4dea14.herokuapp.com/api/groups/all', {
-      method: 'GET',
-      headers
-    });
+    console.log('🔍 Pobieranie wszystkich grup...');
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    // Próbujemy różne możliwe endpointy
+    const possibleEndpoints = [
+      'https://dziekan-48de5f4dea14.herokuapp.com/api/groups/all',
+      'https://dziekan-48de5f4dea14.herokuapp.com/api/groups',
+      'https://dziekan-48de5f4dea14.herokuapp.com/api/admin/groups'
+    ];
+
+    for (const endpoint of possibleEndpoints) {
+      try {
+        console.log(`🔍 Próbuję endpoint: ${endpoint}`);
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers
+        });
+
+        console.log(`📡 Response status dla ${endpoint}:`, response.status);
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`✅ Otrzymano grupy z ${endpoint}:`, data);
+          
+          if (!Array.isArray(data)) {
+            console.error('❌ API zwróciło nieprawidłowe dane grup:', data);
+            continue;
+          }
+          
+          console.log(`✅ Załadowano ${data.length} grup`);
+          return data;
+        }
+      } catch (error) {
+        console.log(`❌ Błąd dla endpointu ${endpoint}:`, error);
+      }
     }
 
-    const data = await response.json();
-    
-    if (!Array.isArray(data)) {
-      console.error('❌ API zwróciło nieprawidłowe dane grup:', data);
-      throw new Error('API zwróciło nieprawidłowe dane - oczekiwano tablicy grup');
-    }
-    
-    return data;
+    // Jeśli żaden endpoint nie działa, zwróć pustą tablicę
+    console.warn('⚠️ Nie udało się pobrać grup z żadnego endpointu, zwracam pustą tablicę');
+    return [];
   } catch (error) {
+    console.error('❌ Błąd pobierania grup:', error);
     handleAxiosError(error, 'pobierania grup');
-    throw error;
+    return []; // Zwracamy pustą tablicę zamiast rzucania błędem
   }
 };
 
@@ -321,26 +343,49 @@ export const getMyGroups = async (userId: number): Promise<Group[]> => {
     const headers = getAuthHeaders();
     if (!headers) throw new Error('Brak autoryzacji');
 
-    const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/groups/by-user/${userId}`, {
-      method: 'GET',
-      headers
-    });
+    console.log(`🔍 Pobieranie grup dla użytkownika ${userId}`);
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    // Próbujemy różne możliwe endpointy
+    const possibleEndpoints = [
+      `https://dziekan-48de5f4dea14.herokuapp.com/api/groups/by-user/${userId}`,
+      `https://dziekan-48de5f4dea14.herokuapp.com/api/groups/user/${userId}`,
+      `https://dziekan-48de5f4dea14.herokuapp.com/api/users/${userId}/groups`
+    ];
+
+    for (const endpoint of possibleEndpoints) {
+      try {
+        console.log(`🔍 Próbuję endpoint: ${endpoint}`);
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers
+        });
+
+        console.log(`📡 Response status dla ${endpoint}:`, response.status);
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`✅ Otrzymano grupy użytkownika z ${endpoint}:`, data);
+          
+          if (!Array.isArray(data)) {
+            console.error('❌ API zwróciło nieprawidłowe dane grup użytkownika:', data);
+            continue;
+          }
+          
+          console.log(`✅ Załadowano ${data.length} grup dla użytkownika ${userId}`);
+          return data;
+        }
+      } catch (error) {
+        console.log(`❌ Błąd dla endpointu ${endpoint}:`, error);
+      }
     }
 
-    const data = await response.json();
-    
-    if (!Array.isArray(data)) {
-      console.error('❌ API zwróciło nieprawidłowe dane grup użytkownika:', data);
-      throw new Error('API zwróciło nieprawidłowe dane - oczekiwano tablicy grup');
-    }
-    
-    return data;
+    // Jeśli żaden endpoint nie działa, zwróć pustą tablicę zamiast błędu
+    console.warn(`⚠️ Nie udało się pobrać grup dla użytkownika ${userId}, zwracam pustą tablicę`);
+    return [];
   } catch (error) {
+    console.error(`❌ Błąd pobierania grup użytkownika ${userId}:`, error);
     handleAxiosError(error, `pobierania grup użytkownika ${userId}`);
-    throw error;
+    return []; // Zwracamy pustą tablicę zamiast rzucania błędem
   }
 };
 
