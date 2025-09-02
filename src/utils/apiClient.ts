@@ -381,24 +381,35 @@ export const getAllUsers = async (): Promise<User[]> => {
     const headers = getAuthHeaders();
     if (!headers) throw new Error('Brak autoryzacji');
 
-    const response = await fetch('https://dziekan-48de5f4dea14.herokuapp.com/api/users/all', {
+    console.log('🔍 Pobieranie użytkowników z endpoint: /api/users');
+    console.log('🔑 Headers:', headers);
+    
+    const response = await fetch('https://dziekan-48de5f4dea14.herokuapp.com/api/users', {
       method: 'GET',
       headers
     });
 
+    console.log('📡 Response status:', response.status);
+    console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('❌ Response error text:', errorText);
+      throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('✅ Otrzymano dane:', data);
     
     if (!Array.isArray(data)) {
       console.error('❌ API zwróciło nieprawidłowe dane użytkowników:', data);
       throw new Error('API zwróciło nieprawidłowe dane - oczekiwano tablicy użytkowników');
     }
     
+    console.log(`✅ Załadowano ${data.length} użytkowników`);
     return data;
   } catch (error) {
+    console.error('❌ Błąd pobierania użytkowników:', error);
     handleAxiosError(error, 'pobierania użytkowników');
     throw error;
   }
@@ -432,25 +443,52 @@ export const searchUsersByName = async (name: string): Promise<User[]> => {
     const headers = getAuthHeaders();
     if (!headers) throw new Error('Brak autoryzacji');
 
-    const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/users/search?name=${encodeURIComponent(name)}`, {
-      method: 'GET',
-      headers
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    // Jeśli nie ma wyszukiwanej frazy, zwróć wszystkich użytkowników
+    if (!name.trim()) {
+      return await getAllUsers();
     }
 
-    const data = await response.json();
-    
-    if (!Array.isArray(data)) {
-      console.error('❌ API zwróciło nieprawidłowe dane wyszukiwania użytkowników:', data);
-      throw new Error('API zwróciło nieprawidłowe dane - oczekiwano tablicy użytkowników');
+    const possibleEndpoints = [
+      `https://dziekan-48de5f4dea14.herokuapp.com/api/users/search?name=${encodeURIComponent(name)}`,
+      `https://dziekan-48de5f4dea14.herokuapp.com/api/users?search=${encodeURIComponent(name)}`,
+      `https://dziekan-48de5f4dea14.herokuapp.com/api/user/search?name=${encodeURIComponent(name)}`
+    ];
+
+    for (const endpoint of possibleEndpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (!Array.isArray(data)) {
+            console.error('❌ API zwróciło nieprawidłowe dane wyszukiwania użytkowników:', data);
+            continue;
+          }
+          
+          return data;
+        }
+      } catch (error) {
+        console.log(`Błąd dla endpointu ${endpoint}:`, error);
+      }
     }
-    
-    return data;
+
+    // Jeśli wyszukiwanie nie działa, spróbuj pobrać wszystkich i przefiltrować lokalnie
+    try {
+      const allUsers = await getAllUsers();
+      return allUsers.filter(user => 
+        user.firstName.toLowerCase().includes(name.toLowerCase()) ||
+        user.surname.toLowerCase().includes(name.toLowerCase())
+      );
+    } catch (error) {
+      console.error('Nie udało się wyszukać użytkowników:', error);
+      return [];
+    }
   } catch (error) {
     handleAxiosError(error, `wyszukiwania użytkowników po nazwie "${name}"`);
-    throw error;
+    return [];
   }
 };

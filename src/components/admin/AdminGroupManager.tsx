@@ -81,11 +81,14 @@ export default function AdminGroupManager() {
     
     try {
       setError(null);
+      console.log('🔄 Ładowanie użytkowników...');
       const allUsers = await getAllUsers();
+      console.log('✅ Załadowano użytkowników:', allUsers.length);
       setUsers(allUsers);
     } catch (error) {
-      console.error('Błąd ładowania użytkowników:', error);
-      setError('Nie można załadować użytkowników');
+      console.error('❌ Błąd ładowania użytkowników:', error);
+      setError('Nie można załadować użytkowników. Sprawdź uprawnienia administratora.');
+      setUsers([]); // Ustawiamy pustą tablicę w przypadku błędu
     }
   }, [isAuthenticated]);
 
@@ -572,11 +575,19 @@ export default function AdminGroupManager() {
 
           {/* Lista użytkowników */}
           <div className="max-h-60 overflow-y-auto">
-            {users.length === 0 ? (
+            {error && (
+              <div className="text-center py-4">
+                <p className="text-sm text-red-600 mb-2">Błąd ładowania użytkowników</p>
+                <Button size="sm" variant="outline" onClick={loadUsers}>
+                  Spróbuj ponownie
+                </Button>
+              </div>
+            )}
+            {!error && users.length === 0 ? (
               <p className="text-sm text-gray-600 text-center py-4">
                 {userSearchTerm ? 'Nie znaleziono użytkowników' : 'Ładowanie użytkowników...'}
               </p>
-            ) : (
+            ) : !error && (
               <div className="space-y-2">
                 {users
                   .filter(user => !selectedGroup?.participants.some(p => p.id === user.id))
