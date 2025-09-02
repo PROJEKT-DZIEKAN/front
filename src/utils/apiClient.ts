@@ -226,71 +226,67 @@ export const getGroupById = async (groupId: number): Promise<Group> => {
 // Funkcja do tworzenia nowej grupy (tylko admin/organizator)
 export const createGroup = async (groupRequest: CreateGroupRequest): Promise<Group> => {
   try {
-    const headers = getAuthHeaders();
-    if (!headers) throw new Error('Brak autoryzacji');
-
     console.log('🔍 Tworzenie grupy z danymi:', groupRequest);
+    
+    // Sprawdź dostępne tokeny
+    const accessToken = localStorage.getItem('accessToken');
+    const refreshToken = localStorage.getItem('refreshToken');
+    const token = localStorage.getItem('token');
+    
+    console.log('🔑 Dostępne tokeny:', {
+      accessToken: accessToken ? 'EXISTS' : 'MISSING',
+      refreshToken: refreshToken ? 'EXISTS' : 'MISSING',
+      token: token ? 'EXISTS' : 'MISSING'
+    });
 
-    // Próbujemy różne struktury danych
-    const possiblePayloads = [
-      // Struktura 1: Pełny obiekt jak w oryginalnym skrypcie
-      {
-        name: groupRequest.name,
-        description: groupRequest.description || '',
-        maxParticipants: groupRequest.maxParticipants || null,
-        createdAt: new Date().toISOString(),
-        organizer: { id: groupRequest.organizerId }
-      },
-      // Struktura 2: Uproszczona
-      {
-        name: groupRequest.name,
-        description: groupRequest.description || '',
-        maxParticipants: groupRequest.maxParticipants,
-        organizerId: groupRequest.organizerId
-      },
-      // Struktura 3: Jeszcze prostsza
-      {
-        name: groupRequest.name,
-        description: groupRequest.description,
-        maxParticipants: groupRequest.maxParticipants,
-        organizer: groupRequest.organizerId
-      }
-    ];
+    // Użyj odpowiedniego tokenu
+    const authToken = accessToken || token;
+    if (!authToken) {
+      throw new Error('Brak tokenu autoryzacji - zaloguj się ponownie');
+    }
 
-    const possibleEndpoints = [
-      'https://dziekan-48de5f4dea14.herokuapp.com/api/groups/create',
-      'https://dziekan-48de5f4dea14.herokuapp.com/api/groups',
-      'https://dziekan-48de5f4dea14.herokuapp.com/api/admin/groups/create'
-    ];
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authToken}`
+    };
 
-    for (const endpoint of possibleEndpoints) {
-      for (const payload of possiblePayloads) {
-        try {
-          console.log(`🔍 Próbuję endpoint: ${endpoint} z payload:`, payload);
-          
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(payload)
-          });
+    console.log('🔑 Headers:', headers);
 
-          console.log(`📡 Response status dla ${endpoint}:`, response.status);
+    // Struktura zgodna z backendem
+    const payload = {
+      name: groupRequest.name,
+      description: groupRequest.description || '',
+      maxParticipants: groupRequest.maxParticipants || null,
+      organizer: { id: groupRequest.organizerId }
+    };
 
-          if (response.ok) {
-            const result = await response.json();
-            console.log('✅ Grupa utworzona pomyślnie:', result);
-            return result;
-          } else {
-            const errorText = await response.text();
-            console.log(`❌ Błąd ${response.status} dla ${endpoint}:`, errorText);
-          }
-        } catch (error) {
-          console.log(`❌ Błąd dla ${endpoint}:`, error);
-        }
+    console.log('📦 Payload:', payload);
+
+    const response = await fetch('https://dziekan-48de5f4dea14.herokuapp.com/api/groups/create', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload)
+    });
+
+    console.log('📡 Response status:', response.status);
+    console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Response error:', errorText);
+      
+      if (response.status === 403) {
+        throw new Error('Brak uprawnień do tworzenia grup. Sprawdź czy jesteś zalogowany jako administrator.');
+      } else if (response.status === 401) {
+        throw new Error('Token wygasł lub jest niepoprawny. Zaloguj się ponownie.');
+      } else {
+        throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
       }
     }
 
-    throw new Error('Nie udało się utworzyć grupy z żadnym endpointem/payloadem');
+    const result = await response.json();
+    console.log('✅ Grupa utworzona pomyślnie:', result);
+    return result;
   } catch (error) {
     console.error('❌ Błąd tworzenia grupy:', error);
     handleAxiosError(error, 'tworzenia grupy');
