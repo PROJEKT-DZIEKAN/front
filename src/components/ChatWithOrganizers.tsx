@@ -143,7 +143,7 @@ export default function ChatWithOrganizers() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto h-screen flex flex-col bg-gray-50">
+    <div className="chat-container h-screen flex flex-col bg-gray-50 no-scroll-x">
       {/* Header */}
       <ChatHeader
         user={user}
@@ -153,48 +153,54 @@ export default function ChatWithOrganizers() {
         onStartSupport={handleStartSupport}
       />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="chat-layout flex flex-1 overflow-hidden">
         {/* Lista chatów (jeśli są) */}
-        <ChatList
-          chats={chats}
-          selectedChatId={selectedChatId}
-          isAdmin={isAdmin}
-          allUsers={allUsers}
-          chatMessages={chatMessages}
-          user={user}
-          onSelectChat={selectChat}
-          getChatAdmin={getChatAdmin}
-          getLatestMessage={getLatestMessage}
-        />
+        <div className="chat-sidebar">
+          <ChatList
+            chats={chats}
+            selectedChatId={selectedChatId}
+            isAdmin={isAdmin}
+            allUsers={allUsers}
+            chatMessages={chatMessages}
+            user={user}
+            onSelectChat={selectChat}
+            getChatAdmin={getChatAdmin}
+            getLatestMessage={getLatestMessage}
+          />
+        </div>
 
         {/* Okno chatu */}
-        <div className="flex-1 flex flex-col">
+        <div className="chat-main flex-1 flex flex-col overflow-hidden">
           {selectedChatId ? (
             <>
-              <div className="p-4 bg-white border-b border-gray-300">
-                <h3 className="font-semibold text-gray-800">
+              <div className="p-4 bg-white border-b border-gray-300 flex-shrink-0">
+                <h3 className="font-semibold text-gray-800 truncate">
                   {isAdmin ? `Chat #${selectedChatId}` : `Chat z organizatorem #${selectedChatId}`}
                 </h3>
               </div>
 
               {/* Wiadomości */}
-              <ChatMessages
-                ref={messagesEndRef}
-                messages={chatMessages}
-                selectedChatId={selectedChatId}
-                allUsers={allUsers}
-                user={user}
-              />
+              <div className="chat-messages-container flex-1 overflow-y-auto overflow-x-hidden">
+                <ChatMessages
+                  ref={messagesEndRef}
+                  messages={chatMessages}
+                  selectedChatId={selectedChatId}
+                  allUsers={allUsers}
+                  user={user}
+                />
+              </div>
 
               {/* Formularz wysyłania */}
-              <ChatInput
-                ref={inputRef}
-                newMessage={newMessage}
-                onMessageChange={setNewMessage}
-                onSubmit={handleSendMessage}
-                connected={connected}
-                isAdmin={isAdmin}
-              />
+              <div className="flex-shrink-0">
+                <ChatInput
+                  ref={inputRef}
+                  newMessage={newMessage}
+                  onMessageChange={setNewMessage}
+                  onSubmit={handleSendMessage}
+                  connected={connected}
+                  isAdmin={isAdmin}
+                />
+              </div>
             </>
           ) : (
             <ChatEmptyState isAdmin={isAdmin} chatsCount={chats.length} />

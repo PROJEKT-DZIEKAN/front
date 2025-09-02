@@ -34,7 +34,7 @@ const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
     .sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+    <div className="p-4 space-y-3 bg-gray-50 h-full overflow-y-auto overflow-x-hidden">
       {filteredMessages.map((msg, index) => {
         const sender = allUsers.get(msg.senderId);
         const isMyMessage = msg.senderId === user?.id;
@@ -45,7 +45,7 @@ const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
         
         return (
           <div key={index} className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg shadow-sm ${
+            <div className={`chat-message max-w-xs lg:max-w-md px-4 py-3 rounded-lg shadow-sm ${
               isMyMessage 
                 ? 'bg-blue-500 text-white' 
                 : 'bg-white text-gray-800 border border-gray-200'
@@ -53,7 +53,7 @@ const ChatMessages = forwardRef<HTMLDivElement, ChatMessagesProps>(({
               <div className="text-xs opacity-75 mb-1 font-medium">
                 {isMyMessage ? 'Ty' : (senderIsAdmin ? '👑 Organizator' : 'Użytkownik')}
               </div>
-              <div className="leading-relaxed">{msg.content}</div>
+              <div className="leading-relaxed break-words">{msg.content}</div>
               <div className="text-xs opacity-75 mt-2">
                 {new Date(msg.sentAt).toLocaleTimeString()}
               </div>

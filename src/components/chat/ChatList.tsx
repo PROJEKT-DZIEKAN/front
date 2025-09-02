@@ -44,11 +44,11 @@ export default function ChatList({
   if (chats.length === 0) return null;
 
   return (
-    <div className="w-1/3 bg-white border-r border-gray-300">
-      <div className="p-3 bg-gray-50 font-semibold text-sm text-gray-600 border-b">
+    <div className="w-full bg-white border-r border-gray-300 flex flex-col overflow-hidden">
+      <div className="p-3 bg-gray-50 font-semibold text-sm text-gray-600 border-b flex-shrink-0">
         {isAdmin ? `Wszystkie chaty (${chats.length})` : `Moje chaty (${chats.length})`}
       </div>
-      <div className="overflow-y-auto">
+      <div className="overflow-y-auto flex-1">
         {chats.map(chat => {
           const admin = isAdmin ? null : getChatAdmin(chat);
           const latestMessage = getLatestMessage(chat.id);
@@ -61,7 +61,7 @@ export default function ChatList({
               }`}
               onClick={() => onSelectChat(chat.id)}
             >
-              <div className="font-medium text-sm">
+              <div className="font-medium text-sm truncate">
                 {isAdmin ? 
                   `Chat #${chat.id}` : 
                   `Chat z: ${admin ? `${admin.firstName} ${admin.surname} 👑` : 'Organizatorem'}`
