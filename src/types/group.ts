@@ -3,6 +3,7 @@ export interface GroupParticipant {
   firstName: string;
   surname: string;
   registrationStatus?: string;
+  // Added for Vercel build test
 }
 
 export interface GroupOrganizer {
