@@ -115,7 +115,7 @@ export function EventProvider({ children }: { children: ReactNode }) {
       console.log('✅ Headers gotowe:', headers);
       console.log('🚀 Wysyłam request do:', `${API_BASE_URL}/api/events`);
       
-      const response = await axios.get(`${API_BASE_URL}/api/events`, { headers });
+      const response = await axios.get(`${API_BASE_URL}/api/events/all`, { headers });
       console.log('📥 Odpowiedź:', response.data);
       
       // Sprawdzenie czy response.data jest tablicą

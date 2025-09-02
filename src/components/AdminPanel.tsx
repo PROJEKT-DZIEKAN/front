@@ -39,7 +39,7 @@ export default function AdminPanel() {
     setIsLoading(true);
     try {
       const eventsData = await getAllEvents();
-      
+      console.log('eventts', eventsData)
       // Sprawdzenie czy eventsData jest tablicą
       if (!Array.isArray(eventsData)) {
         console.error('❌ API zwróciło nieprawidłowe dane eventów:', eventsData);
