@@ -41,6 +41,7 @@ export default function AdminPanel() {
     setIsLoading(true);
     try {
       const eventsData = await getAllEvents();
+      console.log('events', eventsData);
       
       // Sprawdzenie czy eventsData jest tablicą
       if (!Array.isArray(eventsData)) {
