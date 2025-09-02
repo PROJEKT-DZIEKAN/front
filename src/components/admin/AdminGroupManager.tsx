@@ -204,24 +204,68 @@ export default function AdminGroupManager() {
 
     try {
       setLoading(true);
-      // Używamy API do dodania uczestnika
-      const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/groups/add-participant/${selectedGroup.id}/${userId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      });
+      setError(null);
+      
+      console.log(`🔍 Dodawanie użytkownika ${userId} do grupy ${selectedGroup.id}`);
+      
+      // Próbujemy różne endpointy
+      const possibleEndpoints = [
+        `https://dziekan-48de5f4dea14.herokuapp.com/api/groups/add-participant/${selectedGroup.id}/${userId}`,
+        `https://dziekan-48de5f4dea14.herokuapp.com/api/groups/${selectedGroup.id}/participants/${userId}`,
+        `https://dziekan-48de5f4dea14.herokuapp.com/api/groups/${selectedGroup.id}/add-user/${userId}`
+      ];
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+      };
+
+      let success = false;
+      
+      for (const endpoint of possibleEndpoints) {
+        try {
+          console.log(`🔍 Próbuję endpoint: ${endpoint}`);
+          
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers
+          });
+
+          console.log(`📡 Response status dla ${endpoint}:`, response.status);
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Użytkownik dodany pomyślnie:', result);
+            success = true;
+            break;
+          } else {
+            const errorText = await response.text();
+            console.log(`❌ Błąd ${response.status} dla ${endpoint}:`, errorText);
+          }
+        } catch (error) {
+          console.log(`❌ Błąd dla ${endpoint}:`, error);
+        }
       }
 
-      await loadGroups();
-      setShowAddUserModal(false);
+      if (success) {
+        // Odśwież grupy i zamknij modal
+        await loadGroups();
+        setShowAddUserModal(false);
+        
+        // Pokaż szczegóły grupy żeby zobaczyć czy użytkownik został dodany
+        const updatedGroup = await getAllGroups().then(groups => 
+          groups.find(g => g.id === selectedGroup.id)
+        );
+        if (updatedGroup) {
+          setSelectedGroup(updatedGroup);
+          setShowDetailsModal(true);
+        }
+      } else {
+        throw new Error('Nie udało się dodać użytkownika do grupy z żadnym endpointem');
+      }
     } catch (error) {
-      console.error('Błąd dodawania użytkownika do grupy:', error);
-      setError('Błąd dodawania użytkownika do grupy');
+      console.error('❌ Błąd dodawania użytkownika do grupy:', error);
+      setError('Błąd dodawania użytkownika do grupy. Sprawdź uprawnienia.');
     } finally {
       setLoading(false);
     }
@@ -237,22 +281,65 @@ export default function AdminGroupManager() {
 
     try {
       setLoading(true);
-      const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/groups/remove-participant/${selectedGroup.id}/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      });
+      setError(null);
+      
+      console.log(`🔍 Usuwanie użytkownika ${userId} z grupy ${selectedGroup.id}`);
+      
+      // Próbujemy różne endpointy
+      const possibleEndpoints = [
+        `https://dziekan-48de5f4dea14.herokuapp.com/api/groups/remove-participant/${selectedGroup.id}/${userId}`,
+        `https://dziekan-48de5f4dea14.herokuapp.com/api/groups/${selectedGroup.id}/participants/${userId}`,
+        `https://dziekan-48de5f4dea14.herokuapp.com/api/groups/${selectedGroup.id}/remove-user/${userId}`
+      ];
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+      };
+
+      let success = false;
+      
+      for (const endpoint of possibleEndpoints) {
+        try {
+          console.log(`🔍 Próbuję endpoint: ${endpoint}`);
+          
+          const response = await fetch(endpoint, {
+            method: 'DELETE',
+            headers
+          });
+
+          console.log(`📡 Response status dla ${endpoint}:`, response.status);
+
+          if (response.ok) {
+            console.log('✅ Użytkownik usunięty pomyślnie');
+            success = true;
+            break;
+          } else {
+            const errorText = await response.text();
+            console.log(`❌ Błąd ${response.status} dla ${endpoint}:`, errorText);
+          }
+        } catch (error) {
+          console.log(`❌ Błąd dla ${endpoint}:`, error);
+        }
       }
 
-      await loadGroups();
+      if (success) {
+        // Odśwież grupy
+        await loadGroups();
+        
+        // Zaktualizuj szczegóły grupy
+        const updatedGroup = await getAllGroups().then(groups => 
+          groups.find(g => g.id === selectedGroup.id)
+        );
+        if (updatedGroup) {
+          setSelectedGroup(updatedGroup);
+        }
+      } else {
+        throw new Error('Nie udało się usunąć użytkownika z grupy z żadnym endpointem');
+      }
     } catch (error) {
-      console.error('Błąd usuwania użytkownika z grupy:', error);
-      setError('Błąd usuwania użytkownika z grupy');
+      console.error('❌ Błąd usuwania użytkownika z grupy:', error);
+      setError('Błąd usuwania użytkownika z grupy. Sprawdź uprawnienia.');
     } finally {
       setLoading(false);
     }

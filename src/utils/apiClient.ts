@@ -229,26 +229,70 @@ export const createGroup = async (groupRequest: CreateGroupRequest): Promise<Gro
     const headers = getAuthHeaders();
     if (!headers) throw new Error('Brak autoryzacji');
 
-    const group = {
-      name: groupRequest.name,
-      description: groupRequest.description || '',
-      maxParticipants: groupRequest.maxParticipants || null,
-      createdAt: new Date().toISOString(),
-      organizer: { id: groupRequest.organizerId }
-    };
+    console.log('🔍 Tworzenie grupy z danymi:', groupRequest);
 
-    const response = await fetch('https://dziekan-48de5f4dea14.herokuapp.com/api/groups/create', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(group)
-    });
+    // Próbujemy różne struktury danych
+    const possiblePayloads = [
+      // Struktura 1: Pełny obiekt jak w oryginalnym skrypcie
+      {
+        name: groupRequest.name,
+        description: groupRequest.description || '',
+        maxParticipants: groupRequest.maxParticipants || null,
+        createdAt: new Date().toISOString(),
+        organizer: { id: groupRequest.organizerId }
+      },
+      // Struktura 2: Uproszczona
+      {
+        name: groupRequest.name,
+        description: groupRequest.description || '',
+        maxParticipants: groupRequest.maxParticipants,
+        organizerId: groupRequest.organizerId
+      },
+      // Struktura 3: Jeszcze prostsza
+      {
+        name: groupRequest.name,
+        description: groupRequest.description,
+        maxParticipants: groupRequest.maxParticipants,
+        organizer: groupRequest.organizerId
+      }
+    ];
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    const possibleEndpoints = [
+      'https://dziekan-48de5f4dea14.herokuapp.com/api/groups/create',
+      'https://dziekan-48de5f4dea14.herokuapp.com/api/groups',
+      'https://dziekan-48de5f4dea14.herokuapp.com/api/admin/groups/create'
+    ];
+
+    for (const endpoint of possibleEndpoints) {
+      for (const payload of possiblePayloads) {
+        try {
+          console.log(`🔍 Próbuję endpoint: ${endpoint} z payload:`, payload);
+          
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload)
+          });
+
+          console.log(`📡 Response status dla ${endpoint}:`, response.status);
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Grupa utworzona pomyślnie:', result);
+            return result;
+          } else {
+            const errorText = await response.text();
+            console.log(`❌ Błąd ${response.status} dla ${endpoint}:`, errorText);
+          }
+        } catch (error) {
+          console.log(`❌ Błąd dla ${endpoint}:`, error);
+        }
+      }
     }
 
-    return await response.json();
+    throw new Error('Nie udało się utworzyć grupy z żadnym endpointem/payloadem');
   } catch (error) {
+    console.error('❌ Błąd tworzenia grupy:', error);
     handleAxiosError(error, 'tworzenia grupy');
     throw error;
   }
