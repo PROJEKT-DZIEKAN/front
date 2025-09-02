@@ -414,7 +414,7 @@ export default function AdminGroupManager() {
                     {group.name}
                   </h3>
                   <p className="text-sm text-gray-600 mb-2">
-                    <strong>Organizator:</strong> {group.organizer.firstName} {group.organizer.surname} (ID: {group.organizer.id})
+                    <strong>Organizator:</strong> {group.organizer?.firstName || 'Nieznany'} {group.organizer?.surname || ''} (ID: {group.organizer?.id || 'N/A'})
                   </p>
                   {group.description && (
                     <p className="text-sm text-gray-700 mb-2">{group.description}</p>
@@ -423,7 +423,7 @@ export default function AdminGroupManager() {
                     <span>ID: {group.id}</span>
                     <span>Utworzono: {groupManager.formatGroupDate(group.createdAt)}</span>
                     <span>
-                      Członkowie: {group.participants.length}
+                      Członkowie: {group.participants?.length || 0}
                       {group.maxParticipants && ` / ${group.maxParticipants}`}
                     </span>
                     <span className={`px-2 py-1 rounded-full text-xs ${
@@ -661,13 +661,13 @@ export default function AdminGroupManager() {
                 <strong>Utworzono:</strong> {groupManager.formatGroupDate(selectedGroup.createdAt)}
               </div>
               <div>
-                <strong>Organizator:</strong> {selectedGroup.organizer.firstName} {selectedGroup.organizer.surname}
+                <strong>Organizator:</strong> {selectedGroup.organizer?.firstName || 'Nieznany'} {selectedGroup.organizer?.surname || ''}
               </div>
               <div>
-                <strong>ID organizatora:</strong> {selectedGroup.organizer.id}
+                <strong>ID organizatora:</strong> {selectedGroup.organizer?.id || 'N/A'}
               </div>
               <div>
-                <strong>Członkowie:</strong> {selectedGroup.participants.length}
+                <strong>Członkowie:</strong> {selectedGroup.participants?.length || 0}
                 {selectedGroup.maxParticipants && ` / ${selectedGroup.maxParticipants}`}
               </div>
               <div>
@@ -684,9 +684,9 @@ export default function AdminGroupManager() {
             
             <div>
               <h4 className="font-medium text-gray-900 mb-3">
-                Lista członków ({selectedGroup.participants.length})
+                Lista członków ({selectedGroup.participants?.length || 0})
               </h4>
-              {selectedGroup.participants.length === 0 ? (
+              {(!selectedGroup.participants || selectedGroup.participants.length === 0) ? (
                 <p className="text-sm text-gray-600">Brak członków</p>
               ) : (
                 <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -695,7 +695,7 @@ export default function AdminGroupManager() {
                       <div className="flex items-center space-x-3">
                         <UserIcon className="h-4 w-4 text-gray-500" />
                         <span className="text-sm">
-                          {participant.firstName} {participant.surname}
+                          {participant.firstName || 'Nieznany'} {participant.surname || ''}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">

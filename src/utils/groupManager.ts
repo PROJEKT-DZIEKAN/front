@@ -216,22 +216,22 @@ export class GroupManager {
    * Sprawdza czy użytkownik jest organizatorem grupy
    */
   isGroupOrganizer(group: Group, userId: number): boolean {
-    return group.organizer && group.organizer.id === userId;
+    return group?.organizer?.id === userId;
   }
 
   /**
    * Sprawdza czy użytkownik jest uczestnikiem grupy
    */
   isGroupParticipant(group: Group, userId: number): boolean {
-    return group.participants && group.participants.some(p => p.id === userId);
+    return group?.participants?.some(p => p?.id === userId) || false;
   }
 
   /**
    * Sprawdza czy grupa ma dostępne miejsca
    */
   hasAvailableSpots(group: Group): boolean {
-    if (!group.maxParticipants) return true;
-    const currentParticipants = group.participants ? group.participants.length : 0;
+    if (!group?.maxParticipants) return true;
+    const currentParticipants = group?.participants?.length || 0;
     return currentParticipants < group.maxParticipants;
   }
 
@@ -239,8 +239,8 @@ export class GroupManager {
    * Pobiera liczbę dostępnych miejsc w grupie
    */
   getAvailableSpots(group: Group): number | string {
-    if (!group.maxParticipants) return 'Bez limitu';
-    const currentParticipants = group.participants ? group.participants.length : 0;
+    if (!group?.maxParticipants) return 'Bez limitu';
+    const currentParticipants = group?.participants?.length || 0;
     return group.maxParticipants - currentParticipants;
   }
 

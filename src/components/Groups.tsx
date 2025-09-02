@@ -303,7 +303,7 @@ export default function Groups() {
                     <div>
                       <h3 className="font-semibold text-gray-900">{group.name}</h3>
                       <p className="text-sm text-gray-600">
-                        Organizator: {group.organizer.firstName} {group.organizer.surname}
+                        Organizator: {group.organizer?.firstName || 'Nieznany'} {group.organizer?.surname || ''}
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -333,7 +333,7 @@ export default function Groups() {
                   
                   <div className="flex justify-between items-center">
                     <div className="text-sm text-gray-500">
-                      Członkowie: {group.participants.length}
+                      Członkowie: {group.participants?.length || 0}
                       {group.maxParticipants && ` / ${group.maxParticipants}`}
                       {!permissions.hasSpots && ' (Pełna)'}
                     </div>
@@ -431,9 +431,9 @@ export default function Groups() {
             <div>
               <h4 className="font-medium text-gray-900 mb-2">Informacje o grupie</h4>
               <div className="space-y-2 text-sm">
-                <p><strong>Organizator:</strong> {selectedGroup.organizer.firstName} {selectedGroup.organizer.surname}</p>
+                <p><strong>Organizator:</strong> {selectedGroup.organizer?.firstName || 'Nieznany'} {selectedGroup.organizer?.surname || ''}</p>
                 <p><strong>Utworzono:</strong> {groupManager.formatGroupDate(selectedGroup.createdAt)}</p>
-                <p><strong>Członkowie:</strong> {selectedGroup.participants.length}{selectedGroup.maxParticipants && ` / ${selectedGroup.maxParticipants}`}</p>
+                <p><strong>Członkowie:</strong> {selectedGroup.participants?.length || 0}{selectedGroup.maxParticipants && ` / ${selectedGroup.maxParticipants}`}</p>
                 {selectedGroup.description && (
                   <p><strong>Opis:</strong> {selectedGroup.description}</p>
                 )}
@@ -442,14 +442,14 @@ export default function Groups() {
             
             <div>
               <h4 className="font-medium text-gray-900 mb-2">Lista członków</h4>
-              {selectedGroup.participants.length === 0 ? (
+              {(!selectedGroup.participants || selectedGroup.participants.length === 0) ? (
                 <p className="text-sm text-gray-600">Brak członków</p>
               ) : (
                 <div className="space-y-2">
                   {selectedGroup.participants.map((participant) => (
                     <div key={participant.id} className="flex items-center space-x-3 p-2 bg-gray-50 rounded">
                       <UserIcon className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm">{participant.firstName} {participant.surname}</span>
+                      <span className="text-sm">{participant.firstName || 'Nieznany'} {participant.surname || ''}</span>
                     </div>
                   ))}
                 </div>
