@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, AuthContextType } from '@/types/auth';
+import { extractUserFromToken } from '@/utils/authUtils';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -54,20 +55,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem('refreshToken', tokens.refreshToken);
       localStorage.setItem('authToken', tokens.accessToken); // dla kompatybilności
       
-      // Pobierz dane użytkownika
-      const userResponse = await fetch('https://dziekan-48de5f4dea14.herokuapp.com/api/users/me', {
-        headers: {
-          'Authorization': `Bearer ${tokens.accessToken}`
-        }
-      });
-      
-      if (!userResponse.ok) {
-        console.error('❌ Błąd pobierania danych użytkownika');
+      // Wyciągnij dane użytkownika z JWT tokena
+      const userData = extractUserFromToken(tokens.accessToken);
+      if (!userData) {
+        console.error('❌ Błąd dekodowania JWT tokena');
         return false;
       }
       
-      const userData = await userResponse.json();
-      console.log('✅ Otrzymano dane użytkownika:', userData);
+      console.log('✅ Otrzymano dane użytkownika z JWT:', userData);
+      console.log('🔑 Role użytkownika:', userData.roles);
       
       // Zapisz dane użytkownika
       setUser(userData);
@@ -83,18 +79,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (authToken: string): Promise<void> => {
     try {
-      const response = await fetch('https://dziekan-48de5f4dea14.herokuapp.com/api/users/me', {
-        headers: { 'Authorization': `Bearer ${authToken}` }
-      });
-      
-      if (response.ok) {
-        const userData = await response.json();
+      // Wyciągnij dane użytkownika z JWT tokena
+      const userData = extractUserFromToken(authToken);
+      if (userData) {
         setUser(userData);
         setToken(authToken);
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('authToken', authToken);
         localStorage.setItem('accessToken', authToken);
         localStorage.setItem('refreshToken', `refresh_${authToken}`);
+        console.log('✅ Zalogowano użytkownika z JWT:', userData);
+        console.log('🔑 Role użytkownika:', userData.roles);
       }
     } catch (error) {
       console.error('Login failed:', error);
