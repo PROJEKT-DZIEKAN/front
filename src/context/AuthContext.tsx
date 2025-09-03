@@ -130,8 +130,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const isAdmin = user?.roles?.includes('ADMIN') || false;
+  const isAdmin = user?.roles?.some(role => role.toLowerCase() === 'admin') || false;
   const isAuthenticated = !!user && !!token;
+  
+  // Debug log dla ról admin
+  if (user?.roles) {
+    console.log('🔍 Sprawdzanie ról admin:', { roles: user.roles, isAdmin });
+  }
 
   const value: AuthContextType = {
     user,
