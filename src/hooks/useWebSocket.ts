@@ -3,12 +3,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-import { Message } from './useChat';
+import { Message, User } from './useChat';
 
 const API_BASE_URL = 'https://dziekan-48de5f4dea14.herokuapp.com';
 
 interface UseWebSocketProps {
-  user: any;
+  user: User | null;
   token: string | null;
   onMessageReceived: (message: Message) => void;
   onHistoryReceived: (history: Message[]) => void;

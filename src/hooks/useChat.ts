@@ -24,7 +24,7 @@ export interface User {
   id: number;
   firstName: string;
   surname: string;
-  roles: string[];
+  roles?: string[];
 }
 
 export const useChat = () => {

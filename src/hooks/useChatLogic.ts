@@ -4,7 +4,7 @@ import { useCallback, useMemo } from 'react';
 import { Chat, User, Message } from './useChat';
 
 interface UseChatLogicProps {
-  user: any;
+  user: User | null;
   isAdmin: boolean;
   chats: Chat[];
   allUsers: Map<number, User>;
@@ -189,11 +189,11 @@ export const useChatLogic = ({
             sentAt: new Date().toISOString()
           };
 
-          onMessagesUpdate(prev => [...prev, responseMessage]);
+          onMessagesUpdate([...messages, responseMessage]);
         }
       }, 2000);
     }
-  }, [user, messages, allUsers, isAdmin, onMessagesUpdate]);
+  }, [user, messages, allUsers, onMessagesUpdate]);
 
   return {
     mockUsers,

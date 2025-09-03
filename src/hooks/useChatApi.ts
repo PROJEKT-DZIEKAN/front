@@ -6,7 +6,7 @@ import { Chat, User } from './useChat';
 const API_BASE_URL = 'https://dziekan-48de5f4dea14.herokuapp.com';
 
 interface UseChatApiProps {
-  user: any;
+  user: User | null;
   token: string | null;
   mockChatsData: Chat[];
   mockUsers: Map<number, User>;

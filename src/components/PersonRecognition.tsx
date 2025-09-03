@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useCallback } from 'react';
+import Image from 'next/image';
 import { CameraIcon, PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useFaceRecognition } from '@/hooks/useFaceRecognition';
 
@@ -45,7 +46,7 @@ const PersonRecognition: React.FC = () => {
         setStream(mediaStream);
         setIsCapturing(true);
       }
-    } catch (err) {
+    } catch {
       setError('Nie można uzyskać dostępu do kamery. Sprawdź uprawnienia.');
     }
   }, []);
@@ -97,7 +98,7 @@ const PersonRecognition: React.FC = () => {
 
       const result = await recognizeFace(file);
       setRecognitionResult(result);
-    } catch (err) {
+    } catch {
       setError('Błąd podczas rozpoznawania twarzy');
     } finally {
       setIsProcessing(false);
@@ -132,7 +133,7 @@ const PersonRecognition: React.FC = () => {
     try {
       await reloadDatabase();
       alert('Baza danych została przeładowana');
-    } catch (err) {
+    } catch {
       setError('Błąd podczas przeładowywania bazy');
     }
   };
@@ -249,9 +250,11 @@ const PersonRecognition: React.FC = () => {
 
           {capturedImage && (
             <div className="space-y-3">
-              <img
+              <Image
                 src={capturedImage}
                 alt="Captured"
+                width={300}
+                height={200}
                 className="w-full rounded-lg border"
               />
               <div className="flex gap-2">
