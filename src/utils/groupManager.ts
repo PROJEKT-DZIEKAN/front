@@ -162,9 +162,7 @@ export class GroupManager {
     const group = {
       name: groupData.name,
       description: groupData.description || '',
-      maxParticipants: groupData.maxParticipants || null,
-      createdAt: new Date().toISOString(),
-      organizer: { id: groupData.organizerId }
+      maxParticipants: groupData.maxParticipants || null
     };
 
     return await this.makeRequest<Group>(`${this.baseURL}/groups/create`, {
@@ -214,9 +212,14 @@ export class GroupManager {
 
   /**
    * Sprawdza czy użytkownik jest organizatorem grupy
+   * Uwaga: W nowym API informacja o organizatorze jest ukryta
+   * Ta funkcja zawsze zwróci false - należy używać dedykowanych endpointów
    */
-  isGroupOrganizer(group: Group, userId: number): boolean {
-    return group?.organizer?.id === userId;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  isGroupOrganizer(_group: Group, _userId: number): boolean {
+    // Organizator jest ukryty w API przez @JsonIgnore
+    // Należy używać endpointu /api/groups/by-organizer/{userId} do sprawdzenia
+    return false;
   }
 
   /**

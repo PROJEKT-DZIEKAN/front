@@ -27,7 +27,7 @@ import Alert from '@/components/ui/Alert';
 import Select from '@/components/ui/Select';
 
 export default function AdminGroupManager() {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const {
     groups,
     loading,
@@ -40,13 +40,10 @@ export default function AdminGroupManager() {
     addParticipant,
     removeParticipant,
     searchGroups,
-    fetchGroupsWithSpots,
-    fetchGroupsCreatedAt,
     clearError,
     hasAvailableSpots,
     getAvailableSpots,
-    formatGroupDate,
-    isUserParticipant
+    formatGroupDate
   } = useGroups();
 
   // State
