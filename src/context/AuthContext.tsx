@@ -43,6 +43,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setToken(mockToken);
       localStorage.setItem('user', JSON.stringify(mockUser));
       localStorage.setItem('authToken', mockToken);
+      localStorage.setItem('accessToken', mockToken);
+      localStorage.setItem('refreshToken', `refresh_${mockToken}`);
       
       return true;
     } catch {
@@ -62,6 +64,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setToken(authToken);
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('authToken', authToken);
+        localStorage.setItem('accessToken', authToken);
+        localStorage.setItem('refreshToken', `refresh_${authToken}`);
       }
     } catch (error) {
       console.error('Login failed:', error);
@@ -73,6 +77,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setToken(null);
     localStorage.removeItem('user');
     localStorage.removeItem('authToken');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
   };
 
   const refreshAccessToken = async (): Promise<boolean> => {
