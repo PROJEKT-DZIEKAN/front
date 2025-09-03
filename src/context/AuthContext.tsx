@@ -15,7 +15,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('authToken');
+    const savedToken = localStorage.getItem('accessToken');
     const savedUser = localStorage.getItem('user');
     
     if (savedToken && savedUser) {
@@ -27,34 +27,63 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const loginWithUserId = async (userId: number): Promise<boolean> => {
     try {
-      const mockUsers: User[] = [
-        { id: 1, firstName: 'Jan', surname: 'Kowalski', roles: ['ADMIN'] },
-        { id: 2, firstName: 'Anna', surname: 'Nowak', roles: ['ADMIN'] },
-        { id: 3, firstName: 'Piotr', surname: 'Wiśniewski', roles: ['USER'] },
-        { id: 4, firstName: 'Maria', surname: 'Wójcik', roles: ['USER'] },
-      ];
-
-      const mockUser = mockUsers.find(u => u.id === userId);
-      if (!mockUser) return false;
-
-      const mockToken = `mock_token_${userId}_${Date.now()}`;
+      console.log(`🔐 Logowanie użytkownika ID: ${userId}`);
       
-      setUser(mockUser);
-      setToken(mockToken);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      localStorage.setItem('authToken', mockToken);
-      localStorage.setItem('accessToken', mockToken);
-      localStorage.setItem('refreshToken', `refresh_${mockToken}`);
+      // Wywołaj prawdziwy endpoint logowania
+      const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/auth/login-by-user-id/${userId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          console.error('❌ Nieprawidłowy ID użytkownika');
+          return false;
+        }
+        console.error(`❌ Błąd logowania: ${response.status}`);
+        return false;
+      }
+      
+      const tokens = await response.json();
+      console.log('✅ Otrzymano tokeny:', { accessToken: tokens.accessToken ? 'EXISTS' : 'MISSING' });
+      
+      // Zapisz tokeny
+      localStorage.setItem('accessToken', tokens.accessToken);
+      localStorage.setItem('refreshToken', tokens.refreshToken);
+      localStorage.setItem('authToken', tokens.accessToken); // dla kompatybilności
+      
+      // Pobierz dane użytkownika
+      const userResponse = await fetch('https://dziekan-48de5f4dea14.herokuapp.com/api/users/me', {
+        headers: {
+          'Authorization': `Bearer ${tokens.accessToken}`
+        }
+      });
+      
+      if (!userResponse.ok) {
+        console.error('❌ Błąd pobierania danych użytkownika');
+        return false;
+      }
+      
+      const userData = await userResponse.json();
+      console.log('✅ Otrzymano dane użytkownika:', userData);
+      
+      // Zapisz dane użytkownika
+      setUser(userData);
+      setToken(tokens.accessToken);
+      localStorage.setItem('user', JSON.stringify(userData));
       
       return true;
-    } catch {
+    } catch (error) {
+      console.error('❌ Błąd logowania:', error);
       return false;
     }
   };
 
   const login = async (authToken: string): Promise<void> => {
     try {
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch('https://dziekan-48de5f4dea14.herokuapp.com/api/users/me', {
         headers: { 'Authorization': `Bearer ${authToken}` }
       });
       
@@ -86,16 +115,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const refreshToken = localStorage.getItem('refreshToken');
       if (!refreshToken) return false;
 
-      const response = await fetch('/api/auth/refresh', {
+      const response = await fetch('https://dziekan-48de5f4dea14.herokuapp.com/api/refresh-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken })
       });
 
       if (response.ok) {
-        const { accessToken } = await response.json();
-        setToken(accessToken);
-        localStorage.setItem('authToken', accessToken);
+        const tokens = await response.json();
+        setToken(tokens.accessToken);
+        localStorage.setItem('authToken', tokens.accessToken);
+        localStorage.setItem('accessToken', tokens.accessToken);
+        localStorage.setItem('refreshToken', tokens.refreshToken);
         return true;
       }
       return false;
