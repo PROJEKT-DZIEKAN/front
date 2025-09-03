@@ -24,10 +24,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = useMemo(() => {
     const hasAdminRole = isAuthenticated && (
       user?.roles?.includes('admin') || 
+      user?.roles?.includes('ADMIN') ||
       user?.roles?.some((role: string | { roleName?: string }) => 
-        typeof role === 'object' && role?.roleName === 'admin'
+        typeof role === 'object' && (role?.roleName === 'admin' || role?.roleName === 'ADMIN')
       )
     );
+    console.log('🔍 isAdmin check:', { isAuthenticated, userRoles: user?.roles, hasAdminRole });
     return hasAdminRole || false;
   }, [isAuthenticated, user]);
 

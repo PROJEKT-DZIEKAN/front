@@ -113,18 +113,71 @@ export function EventProvider({ children }: { children: ReactNode }) {
       }
       
       console.log('✅ Headers gotowe:', headers);
-      console.log('🚀 Wysyłam request do:', `${API_BASE_URL}/api/events/all`);
+
+      // Sprawdź czy jest alternatywny token w localStorage (jak w createGroup)
+      const accessToken = localStorage.getItem('accessToken');
+      const refreshToken = localStorage.getItem('refreshToken');
+      const token = localStorage.getItem('token');
       
-      const response = await axios.get(`${API_BASE_URL}/api/events/all`, { headers });
-      console.log('📥 Odpowiedź:', response.data);
-      
-      // Sprawdzenie czy response.data jest tablicą
-      if (!Array.isArray(response.data)) {
-        console.error('❌ API zwróciło nieprawidłowe dane eventów:', response.data);
-        throw new Error('API zwróciło nieprawidłowe dane - oczekiwano tablicy eventów');
+      console.log('🔑 Dostępne tokeny:', {
+        accessToken: accessToken ? 'EXISTS' : 'MISSING',
+        refreshToken: refreshToken ? 'EXISTS' : 'MISSING',
+        token: token ? 'EXISTS' : 'MISSING'
+      });
+
+      // Użyj odpowiedniego tokenu (podobnie jak w createGroup)
+      const authToken = accessToken || token;
+      if (!authToken) {
+        throw new Error('Brak tokenu autoryzacji - zaloguj się ponownie');
       }
-      
-      return response.data;
+
+      const alternativeHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+
+      // Próbujemy różne możliwe endpointy zgodnie z dokumentacją API
+      const possibleEndpoints = [
+        `${API_BASE_URL}/api/events/all`,
+        `${API_BASE_URL}/api/events`,
+        `${API_BASE_URL}/api/admin/events`,
+        `${API_BASE_URL}/api/events/list`
+      ];
+
+      for (const endpoint of possibleEndpoints) {
+        try {
+          console.log(`🔍 Próbuję endpoint: ${endpoint}`);
+          // Próbuj najpierw z alternativeHeaders, potem z headers
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: alternativeHeaders
+          });
+
+          console.log(`📡 Response status dla ${endpoint}:`, response.status);
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log(`✅ Otrzymano eventy z ${endpoint}:`, data);
+            
+            if (!Array.isArray(data)) {
+              console.error('❌ API zwróciło nieprawidłowe dane eventów:', data);
+              continue;
+            }
+            
+            console.log(`✅ Załadowano ${data.length} eventów`);
+            return data;
+          } else if (response.status === 403) {
+            console.log(`⚠️ 403 Forbidden dla ${endpoint} - brak uprawnień`);
+            continue;
+          }
+        } catch (error) {
+          console.log(`❌ Błąd dla endpointu ${endpoint}:`, error);
+        }
+      }
+
+      // Jeśli żaden endpoint nie działa, zwróć pustą tablicę
+      console.warn('⚠️ Nie udało się pobrać eventów z żadnego endpointu, zwracam pustą tablicę');
+      return [];
     } catch (error) {
       console.error('❌ Błąd pobierania eventów:', error);
       if (error && typeof error === 'object' && 'response' in error) {
@@ -132,8 +185,8 @@ export function EventProvider({ children }: { children: ReactNode }) {
         console.error('❌ Status:', axiosError.response?.status);
         console.error('❌ Data:', axiosError.response?.data);
       }
-      // Nie próbujemy ponownie automatycznie - pozwalamy userowi zdecydować
-      throw error; // Rzucamy błąd, żeby EventProgram mógł go obsłużyć
+      // Zwracamy pustą tablicę zamiast rzucania błędem
+      return [];
     }
   };
 

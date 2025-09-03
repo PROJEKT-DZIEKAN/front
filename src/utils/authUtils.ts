@@ -62,7 +62,12 @@ export const clearTokens = () => {
 // Funkcja do pobrania nagłówków autoryzacji
 export const getAuthHeaders = () => {
   const tokens = getTokens();
-  if (!tokens) return null;
+  if (!tokens) {
+    console.log('⚠️ getAuthHeaders: Brak tokenów');
+    return null;
+  }
+  
+  console.log('🔑 getAuthHeaders: Token exists:', tokens.accessToken ? 'YES' : 'NO');
   
   return {
     'Authorization': `Bearer ${tokens.accessToken}`,
