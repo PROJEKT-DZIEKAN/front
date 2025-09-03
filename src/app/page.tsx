@@ -116,7 +116,7 @@ export default function Home() {
   const renderActiveComponent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard onNavigate={setActiveTab} />;
+        return <Dashboard />;
       case 'program':
         return <EventProgram />;
       case 'notifications':
@@ -140,7 +140,7 @@ export default function Home() {
       case 'admin':
         return <AdminPanel />;
       default:
-        return <Dashboard onNavigate={setActiveTab} />;
+        return <Dashboard />;
     }
   };
 
