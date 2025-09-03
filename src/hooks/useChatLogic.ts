@@ -156,6 +156,30 @@ export const useChatLogic = ({
     return chat;
   }, [findAvailableAdmin, chats, mockMode, user, onChatsUpdate]);
 
+  const startChatWithUser = useCallback(async (getOrCreateChat: (userId: number) => Promise<Chat | null>, loadHistory: (chatId: number) => void, targetUserId: number): Promise<Chat | null> => {
+    console.log('👤 Admin starting chat with user...', { mockMode, targetUserId });
+    
+    if (mockMode) {
+      const newChat: Chat = {
+        id: Math.max(...chats.map(c => c.id), 0) + 1,
+        userAId: user!.id,
+        userBId: targetUserId,
+        createdAt: new Date().toISOString()
+      };
+      
+      onChatsUpdate([...chats, newChat]);
+      return newChat;
+    }
+    
+    const chat = await getOrCreateChat(targetUserId);
+    
+    if (chat?.id) {
+      setTimeout(() => loadHistory(chat.id), 100);
+    }
+    
+    return chat;
+  }, [user, mockMode, chats, onChatsUpdate]);
+
   const sendMockMessage = useCallback((chatId: number, content: string, isAdmin: boolean) => {
     if (!user) return;
 
@@ -203,6 +227,7 @@ export const useChatLogic = ({
     findAvailableAdmin,
     hasAccessToChat,
     startSupportChat,
+    startChatWithUser,
     sendMockMessage
   };
 };

@@ -72,7 +72,7 @@ export const useChat = () => {
       chatApi.fetchChats();
       chatApi.fetchAllUsers();
     }
-  }, [user, token, chatApi]);
+  }, [user, token]);
 
   const sendMessage = useCallback((chatId: number, content: string) => {
     console.log('📤 Sending message:', { chatId, senderId: user?.id, content, mockMode });
@@ -94,6 +94,10 @@ export const useChat = () => {
     return chatLogic.startSupportChat(chatApi.getOrCreateChat, webSocket.loadHistory);
   }, [chatLogic, chatApi, webSocket]);
 
+  const startChatWithUser = useCallback(async (targetUserId: number): Promise<Chat | null> => {
+    return chatLogic.startChatWithUser(chatApi.getOrCreateChat, webSocket.loadHistory, targetUserId);
+  }, [chatLogic, chatApi, webSocket]);
+
   return {
     connected: webSocket.connected,
     messages,
@@ -105,6 +109,7 @@ export const useChat = () => {
     fetchAllUsers: chatApi.fetchAllUsers,
     getOrCreateChat: chatApi.getOrCreateChat,
     startSupportChat,
+    startChatWithUser,
     canChatWith: chatLogic.canChatWith,
     hasAccessToChat: chatLogic.hasAccessToChat,
     findAvailableAdmin: chatLogic.findAvailableAdmin,

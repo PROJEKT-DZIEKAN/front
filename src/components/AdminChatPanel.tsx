@@ -19,7 +19,8 @@ export default function AdminChatPanel() {
     loadHistory, 
     fetchChats, 
     fetchAllUsers,
-    hasAccessToChat 
+    hasAccessToChat,
+    startChatWithUser
   } = useChat();
   
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
@@ -49,6 +50,18 @@ export default function AdminChatPanel() {
     if (hasAccessToChat(chatId)) {
       setSelectedChatId(chatId);
       loadHistory(chatId);
+    }
+  };
+
+  const handleStartChatWithUser = async (targetUserId: number) => {
+    try {
+      const chat = await startChatWithUser(targetUserId);
+      if (chat) {
+        setSelectedChatId(chat.id);
+        loadHistory(chat.id);
+      }
+    } catch (error) {
+      console.error('Error starting chat with user:', error);
     }
   };
 
@@ -102,6 +115,30 @@ export default function AdminChatPanel() {
         </div>
         
         <div className="overflow-y-auto flex-1">
+          <div className="p-3 bg-gray-50 font-semibold text-sm text-gray-600 flex-shrink-0">
+            Nowy chat z użytkownikiem
+          </div>
+          
+          <div className="p-3 border-b">
+            <select 
+              className="w-full p-2 border border-gray-300 rounded-md text-sm"
+              onChange={(e) => {
+                const userId = parseInt(e.target.value);
+                if (userId && userId !== user.id) {
+                  handleStartChatWithUser(userId);
+                }
+              }}
+              defaultValue=""
+            >
+              <option value="">Wybierz użytkownika...</option>
+              {Array.from(allUsers.values()).map(u => (
+                <option key={u.id} value={u.id}>
+                  {u.firstName} {u.surname} (ID: {u.id})
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="p-3 bg-gray-50 font-semibold text-sm text-gray-600 flex-shrink-0">
             Wszystkie chaty ({chats.length})
           </div>

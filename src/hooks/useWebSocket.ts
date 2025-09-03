@@ -88,7 +88,7 @@ export const useWebSocket = ({
       console.log('Deactivating WebSocket connection...');
       stompClient.deactivate();
     };
-  }, [user, token, onMessageReceived, onHistoryReceived, enableMockMode]);
+  }, [user, token, onMessageReceived, onHistoryReceived]);
 
   const loadHistory = useCallback((chatId: number) => {
     if (!client || !connected) {
