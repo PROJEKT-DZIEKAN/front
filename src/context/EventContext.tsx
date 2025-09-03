@@ -19,8 +19,6 @@ export function EventProvider({ children }: { children: ReactNode }) {
         alert('❌ Błąd: Brak tokenów autoryzacji. Zaloguj się ponownie.');
         return null;
       }
-
-      // Konwersja dat do formatu ISO jeśli potrzeba
       const eventData: CreateEventRequest = {
         title: event.title,
         description: event.description,
