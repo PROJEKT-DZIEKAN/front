@@ -7,271 +7,215 @@ import {
   PlusIcon, 
   PencilIcon,
   TrashIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  FunnelIcon,
+  CalendarDaysIcon,
+  UserPlusIcon,
+  UserMinusIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/context/AuthContext';
-import { Group, CreateGroupRequest, UpdateGroupRequest } from '@/types/group';
+import { Group, CreateGroupRequest, UpdateGroupRequest, GroupSearchFilters } from '@/types/group';
 import { User } from '@/types/auth';
-import { 
-  getAllGroups, 
-  createGroup, 
-  updateGroup, 
-  deleteGroup,
-  searchGroupsByName,
-  getAllUsers,
-  searchUsersByName
-} from '@/utils/apiClient';
-import { groupManager } from '@/utils/groupManager';
+import { useGroups } from '@/hooks/useGroups';
+import { getAllUsers, searchUsersByName } from '@/utils/apiClient';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import TextArea from '@/components/ui/TextArea';
 import Modal from '@/components/ui/Modal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Alert from '@/components/ui/Alert';
+import Select from '@/components/ui/Select';
 
 export default function AdminGroupManager() {
   const { user, isAuthenticated } = useAuth();
-  const [groups, setGroups] = useState<Group[]>([]);
+  const {
+    groups,
+    loading,
+    error,
+    fetchAllGroups,
+    getGroup,
+    createNewGroup,
+    updateExistingGroup,
+    deleteExistingGroup,
+    addParticipant,
+    removeParticipant,
+    searchGroups,
+    fetchGroupsWithSpots,
+    fetchGroupsCreatedAt,
+    clearError,
+    hasAvailableSpots,
+    getAvailableSpots,
+    formatGroupDate,
+    isUserParticipant
+  } = useGroups();
+
+  // State
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
 
-  // Formularz tworzenia grupy
+  // Form state
   const [newGroup, setNewGroup] = useState<CreateGroupRequest>({
     name: '',
     description: '',
-    maxParticipants: undefined,
-    organizerId: user?.id || 0
+    maxParticipants: undefined
   });
 
-  // Formularz edycji grupy
   const [editGroup, setEditGroup] = useState<UpdateGroupRequest>({
     name: '',
     description: '',
     maxParticipants: undefined
   });
 
-  // Ładowanie wszystkich grup
-  const loadGroups = useCallback(async () => {
-    if (!isAuthenticated) return;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      const allGroups = await getAllGroups();
-      setGroups(allGroups);
-    } catch (error) {
-      console.error('Błąd ładowania grup:', error);
-      setError('Nie można załadować grup');
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated]);
+  // Filters
+  const [filters, setFilters] = useState<GroupSearchFilters>({
+    searchTerm: '',
+    searchType: 'title',
+    hasAvailableSpots: false
+  });
 
-  // Ładowanie wszystkich użytkowników
+  // Load users
   const loadUsers = useCallback(async () => {
     if (!isAuthenticated) return;
     
     try {
-      setError(null);
-      console.log('🔄 Ładowanie użytkowników...');
+      setUsersLoading(true);
+      setUsersError(null);
       const allUsers = await getAllUsers();
-      console.log('✅ Załadowano użytkowników:', allUsers.length);
       setUsers(allUsers);
     } catch (error) {
-      console.error('❌ Błąd ładowania użytkowników:', error);
-      setError('Nie można załadować użytkowników. Sprawdź uprawnienia administratora.');
-      setUsers([]); // Ustawiamy pustą tablicę w przypadku błędu
+      console.error('Error loading users:', error);
+      setUsersError('Nie można załadować użytkowników. Sprawdź uprawnienia administratora.');
+      setUsers([]);
+    } finally {
+      setUsersLoading(false);
     }
   }, [isAuthenticated]);
 
-  // Wyszukiwanie grup
-  const handleSearch = async () => {
-    if (!searchTerm.trim()) {
-      loadGroups();
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      const searchResults = await searchGroupsByName(searchTerm);
-      setGroups(searchResults);
-    } catch (error) {
-      console.error('Błąd wyszukiwania grup:', error);
-      setError('Błąd wyszukiwania grup');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Wyszukiwanie użytkowników
-  const handleUserSearch = async () => {
+  // Search users
+  const handleUserSearch = useCallback(async () => {
     if (!userSearchTerm.trim()) {
       loadUsers();
       return;
     }
 
     try {
-      setError(null);
+      setUsersLoading(true);
+      setUsersError(null);
       const searchResults = await searchUsersByName(userSearchTerm);
       setUsers(searchResults);
     } catch (error) {
-      console.error('Błąd wyszukiwania użytkowników:', error);
-      setError('Błąd wyszukiwania użytkowników');
+      console.error('Error searching users:', error);
+      setUsersError('Błąd wyszukiwania użytkowników');
+    } finally {
+      setUsersLoading(false);
     }
-  };
+  }, [userSearchTerm, loadUsers]);
 
-  // Tworzenie grupy
+  // Search groups
+  const handleSearch = useCallback(async () => {
+    if (!searchTerm.trim()) {
+      fetchAllGroups();
+      return;
+    }
+
+    const searchFilters: GroupSearchFilters = {
+      searchTerm,
+      searchType: 'title'
+    };
+
+    await searchGroups(searchFilters);
+  }, [searchTerm, searchGroups, fetchAllGroups]);
+
+  // Create group
   const handleCreateGroup = async () => {
-    if (!user || !newGroup.name.trim()) return;
+    if (!newGroup.name.trim()) return;
 
     try {
-      setLoading(true);
-      const groupData = {
-        ...newGroup,
-        organizerId: user.id
-      };
-
-      await createGroup(groupData);
+      const createdGroup = await createNewGroup(newGroup);
       
-      // Resetowanie formularza
-      setNewGroup({
-        name: '',
-        description: '',
-        maxParticipants: undefined,
-        organizerId: user.id
-      });
-      
-      setShowCreateModal(false);
-      await loadGroups();
+      if (createdGroup) {
+        // Reset form
+        setNewGroup({
+          name: '',
+          description: '',
+          maxParticipants: undefined
+        });
+        
+        setShowCreateModal(false);
+        await fetchAllGroups();
+      }
     } catch (error) {
-      console.error('Błąd tworzenia grupy:', error);
-      setError('Błąd tworzenia grupy');
-    } finally {
-      setLoading(false);
+      console.error('Error creating group:', error);
     }
   };
 
-  // Edycja grupy
-  const handleEditGroup = async () => {
+  // Update group
+  const handleUpdateGroup = async () => {
     if (!selectedGroup || !editGroup.name?.trim()) return;
 
     try {
-      setLoading(true);
-      await updateGroup(selectedGroup.id, editGroup);
+      const updatedGroup = await updateExistingGroup(selectedGroup.id, editGroup);
       
-      setShowEditModal(false);
-      setSelectedGroup(null);
-      await loadGroups();
+      if (updatedGroup) {
+        setShowEditModal(false);
+        setSelectedGroup(null);
+        await fetchAllGroups();
+      }
     } catch (error) {
-      console.error('Błąd edycji grupy:', error);
-      setError('Błąd edycji grupy');
-    } finally {
-      setLoading(false);
+      console.error('Error updating group:', error);
     }
   };
 
-  // Usuwanie grupy
+  // Delete group
   const handleDeleteGroup = async (groupId: number) => {
     if (!confirm('Czy na pewno chcesz usunąć tę grupę? Ta operacja jest nieodwracalna.')) {
       return;
     }
 
     try {
-      setLoading(true);
-      await deleteGroup(groupId);
-      await loadGroups();
-      setShowDetailsModal(false);
+      const success = await deleteExistingGroup(groupId);
+      if (success) {
+        setShowDetailsModal(false);
+        setSelectedGroup(null);
+      }
     } catch (error) {
-      console.error('Błąd usuwania grupy:', error);
-      setError('Błąd usuwania grupy');
-    } finally {
-      setLoading(false);
+      console.error('Error deleting group:', error);
     }
   };
 
-  // Dodawanie użytkownika do grupy
+  // Add user to group
   const handleAddUserToGroup = async (userId: number) => {
     if (!selectedGroup) return;
 
     try {
-      setLoading(true);
-      setError(null);
+      const success = await addParticipant(selectedGroup.id, userId);
       
-      console.log(`🔍 Dodawanie użytkownika ${userId} do grupy ${selectedGroup.id}`);
-      
-      // Próbujemy różne endpointy
-      const possibleEndpoints = [
-        `https://dziekan-48de5f4dea14.herokuapp.com/api/groups/add-participant/${selectedGroup.id}/${userId}`,
-        `https://dziekan-48de5f4dea14.herokuapp.com/api/groups/${selectedGroup.id}/participants/${userId}`,
-        `https://dziekan-48de5f4dea14.herokuapp.com/api/groups/${selectedGroup.id}/add-user/${userId}`
-      ];
-
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-      };
-
-      let success = false;
-      
-      for (const endpoint of possibleEndpoints) {
-        try {
-          console.log(`🔍 Próbuję endpoint: ${endpoint}`);
-          
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers
-          });
-
-          console.log(`📡 Response status dla ${endpoint}:`, response.status);
-
-          if (response.ok) {
-            const result = await response.json();
-            console.log('✅ Użytkownik dodany pomyślnie:', result);
-            success = true;
-            break;
-          } else {
-            const errorText = await response.text();
-            console.log(`❌ Błąd ${response.status} dla ${endpoint}:`, errorText);
-          }
-        } catch (error) {
-          console.log(`❌ Błąd dla ${endpoint}:`, error);
-        }
-      }
-
       if (success) {
-        // Odśwież grupy i zamknij modal
-        await loadGroups();
         setShowAddUserModal(false);
         
-        // Pokaż szczegóły grupy żeby zobaczyć czy użytkownik został dodany
-        const updatedGroup = await getAllGroups().then(groups => 
-          groups.find(g => g.id === selectedGroup.id)
-        );
+        // Refresh group details
+        const updatedGroup = await getGroup(selectedGroup.id);
         if (updatedGroup) {
           setSelectedGroup(updatedGroup);
-          setShowDetailsModal(true);
         }
-      } else {
-        throw new Error('Nie udało się dodać użytkownika do grupy z żadnym endpointem');
+        
+        await fetchAllGroups();
       }
     } catch (error) {
-      console.error('❌ Błąd dodawania użytkownika do grupy:', error);
-      setError('Błąd dodawania użytkownika do grupy. Sprawdź uprawnienia.');
-    } finally {
-      setLoading(false);
+      console.error('Error adding user to group:', error);
     }
   };
 
-  // Usuwanie użytkownika z grupy
+  // Remove user from group
   const handleRemoveUserFromGroup = async (userId: number) => {
     if (!selectedGroup) return;
 
@@ -280,79 +224,23 @@ export default function AdminGroupManager() {
     }
 
     try {
-      setLoading(true);
-      setError(null);
+      const success = await removeParticipant(selectedGroup.id, userId);
       
-      console.log(`🔍 Usuwanie użytkownika ${userId} z grupy ${selectedGroup.id}`);
-      
-      // Próbujemy różne endpointy
-      const possibleEndpoints = [
-        `https://dziekan-48de5f4dea14.herokuapp.com/api/groups/remove-participant/${selectedGroup.id}/${userId}`,
-        `https://dziekan-48de5f4dea14.herokuapp.com/api/groups/${selectedGroup.id}/participants/${userId}`,
-        `https://dziekan-48de5f4dea14.herokuapp.com/api/groups/${selectedGroup.id}/remove-user/${userId}`
-      ];
-
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-      };
-
-      let success = false;
-      
-      for (const endpoint of possibleEndpoints) {
-        try {
-          console.log(`🔍 Próbuję endpoint: ${endpoint}`);
-          
-          const response = await fetch(endpoint, {
-            method: 'DELETE',
-            headers
-          });
-
-          console.log(`📡 Response status dla ${endpoint}:`, response.status);
-
-          if (response.ok) {
-            console.log('✅ Użytkownik usunięty pomyślnie');
-            success = true;
-            break;
-          } else {
-            const errorText = await response.text();
-            console.log(`❌ Błąd ${response.status} dla ${endpoint}:`, errorText);
-          }
-        } catch (error) {
-          console.log(`❌ Błąd dla ${endpoint}:`, error);
-        }
-      }
-
       if (success) {
-        // Odśwież grupy
-        await loadGroups();
-        
-        // Zaktualizuj szczegóły grupy
-        const updatedGroup = await getAllGroups().then(groups => 
-          groups.find(g => g.id === selectedGroup.id)
-        );
+        // Refresh group details
+        const updatedGroup = await getGroup(selectedGroup.id);
         if (updatedGroup) {
           setSelectedGroup(updatedGroup);
         }
-      } else {
-        throw new Error('Nie udało się usunąć użytkownika z grupy z żadnym endpointem');
+        
+        await fetchAllGroups();
       }
     } catch (error) {
-      console.error('❌ Błąd usuwania użytkownika z grupy:', error);
-      setError('Błąd usuwania użytkownika z grupy. Sprawdź uprawnienia.');
-    } finally {
-      setLoading(false);
+      console.error('Error removing user from group:', error);
     }
   };
 
-  // Otwieranie modalu dodawania użytkownika
-  const openAddUserModal = (group: Group) => {
-    setSelectedGroup(group);
-    setShowAddUserModal(true);
-    loadUsers();
-  };
-
-  // Otwieranie modalu edycji
+  // Open modals
   const openEditModal = (group: Group) => {
     setSelectedGroup(group);
     setEditGroup({
@@ -363,33 +251,43 @@ export default function AdminGroupManager() {
     setShowEditModal(true);
   };
 
-  // Wyświetlanie szczegółów grupy
-  const showGroupDetails = (group: Group) => {
+  const openAddUserModal = (group: Group) => {
     setSelectedGroup(group);
+    setShowAddUserModal(true);
+    loadUsers();
+  };
+
+  const showGroupDetails = async (group: Group) => {
+    // Get fresh group data with participants
+    const freshGroup = await getGroup(group.id);
+    setSelectedGroup(freshGroup || group);
     setShowDetailsModal(true);
   };
 
+  // Apply advanced filters
+  const handleApplyFilters = async () => {
+    await searchGroups(filters);
+    setShowFiltersModal(false);
+  };
+
+  // Reset filters
+  const handleResetFilters = () => {
+    setFilters({
+      searchTerm: '',
+      searchType: 'title',
+      hasAvailableSpots: false
+    });
+    setSearchTerm('');
+    fetchAllGroups();
+  };
+
+  // Load data on mount
   useEffect(() => {
     if (isAuthenticated) {
-      // Ładujemy grupy i użytkowników, ale nie pozwalamy na crash
-      const loadData = async () => {
-        try {
-          await loadGroups();
-        } catch (error) {
-          console.error('Błąd ładowania grup w admin panel:', error);
-        }
-        
-        try {
-          await loadUsers();
-        } catch (error) {
-          console.error('Błąd ładowania użytkowników w admin panel:', error);
-          // Nie blokujemy dalszego działania jeśli użytkownicy się nie załadowali
-        }
-      };
-      
-      loadData();
+      fetchAllGroups();
+      loadUsers();
     }
-  }, [isAuthenticated, loadGroups, loadUsers]);
+  }, [isAuthenticated, fetchAllGroups, loadUsers]);
 
   if (!isAuthenticated) {
     return (
@@ -401,7 +299,7 @@ export default function AdminGroupManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header i kontrolki */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold text-gray-900">Zarządzanie grupami</h2>
@@ -413,41 +311,88 @@ export default function AdminGroupManager() {
             <PlusIcon className="h-4 w-4 mr-2" />
             Utwórz grupę
           </Button>
-          <Button variant="outline" onClick={loadGroups} disabled={loading}>
+          <Button variant="outline" onClick={fetchAllGroups} disabled={loading}>
             Odśwież
           </Button>
         </div>
       </div>
 
-      {/* Wyszukiwarka */}
-      <div className="flex gap-2">
-        <div className="flex-1">
-          <Input
-            placeholder="Wyszukaj grupy po nazwie..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-          />
-        </div>
-        <Button onClick={handleSearch} variant="outline" disabled={loading}>
-          <MagnifyingGlassIcon className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {/* Błędy */}
+      {/* Error Alerts */}
       {error && (
-        <Alert type="error" title="Błąd">
+        <Alert type="error" title="Błąd grup">
           {error}
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => setError(null)}
+            onClick={clearError}
             className="mt-2"
           >
             Zamknij
           </Button>
         </Alert>
       )}
+
+      {usersError && (
+        <Alert type="warning" title="Błąd użytkowników">
+          {usersError}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setUsersError(null)}
+            className="mt-2"
+          >
+            Zamknij
+          </Button>
+        </Alert>
+      )}
+
+      {/* Search and Filters */}
+      <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <div className="flex gap-2 mb-4">
+          <div className="flex-1">
+            <Input
+              placeholder="Wyszukaj grupy po nazwie..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            />
+          </div>
+          <Button onClick={handleSearch} variant="outline" disabled={loading}>
+            <MagnifyingGlassIcon className="h-4 w-4" />
+          </Button>
+          <Button onClick={() => setShowFiltersModal(true)} variant="outline">
+            <FunnelIcon className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Statistics */}
+        {!loading && groups.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{groups.length}</div>
+              <div className="text-sm text-gray-600">Wszystkich grup</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">
+                {groups.reduce((sum, group) => sum + (group.participants?.length || 0), 0)}
+              </div>
+              <div className="text-sm text-gray-600">Łączna liczba członków</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {groups.filter(group => hasAvailableSpots(group)).length}
+              </div>
+              <div className="text-sm text-gray-600">Grup z dostępnymi miejscami</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600">
+                {groups.filter(group => !group.maxParticipants).length}
+              </div>
+              <div className="text-sm text-gray-600">Grup bez limitu</div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Loading */}
       {loading && (
@@ -456,31 +401,7 @@ export default function AdminGroupManager() {
         </div>
       )}
 
-      {/* Statystyki */}
-      {!loading && (
-        <div className="bg-gray-50 rounded-lg p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{groups.length}</div>
-              <div className="text-sm text-gray-600">Wszystkich grup</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
-                {groups.reduce((sum, group) => sum + group.participants.length, 0)}
-              </div>
-              <div className="text-sm text-gray-600">Łączna liczba członków</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">
-                {groups.filter(group => groupManager.hasAvailableSpots(group)).length}
-              </div>
-              <div className="text-sm text-gray-600">Grup z dostępnymi miejscami</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Lista grup */}
+      {/* Groups List */}
       {!loading && groups.length === 0 ? (
         <div className="text-center py-12">
           <UserGroupIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -488,7 +409,7 @@ export default function AdminGroupManager() {
             {searchTerm ? 'Nie znaleziono grup' : 'Brak grup w systemie'}
           </p>
         </div>
-      ) : (
+      ) : !loading && (
         <div className="space-y-4">
           {groups.map((group) => (
             <div
@@ -497,28 +418,34 @@ export default function AdminGroupManager() {
             >
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
                     {group.name}
                   </h3>
-                  <p className="text-sm text-gray-600 mb-2">
-                    <strong>Organizator:</strong> {group.organizer?.firstName || 'Nieznany'} {group.organizer?.surname || ''} (ID: {group.organizer?.id || 'N/A'})
-                  </p>
+                  
                   {group.description && (
-                    <p className="text-sm text-gray-700 mb-2">{group.description}</p>
+                    <p className="text-sm text-gray-700 mb-3 line-clamp-2">{group.description}</p>
                   )}
+                  
                   <div className="flex flex-wrap gap-4 text-xs text-gray-500">
-                    <span>ID: {group.id}</span>
-                    <span>Utworzono: {groupManager.formatGroupDate(group.createdAt)}</span>
-                    <span>
+                    <span className="flex items-center">
+                      <CalendarDaysIcon className="h-4 w-4 mr-1" />
+                      ID: {group.id}
+                    </span>
+                    <span className="flex items-center">
+                      <CalendarDaysIcon className="h-4 w-4 mr-1" />
+                      Utworzono: {formatGroupDate(group.createdAt)}
+                    </span>
+                    <span className="flex items-center">
+                      <UserIcon className="h-4 w-4 mr-1" />
                       Członkowie: {group.participants?.length || 0}
                       {group.maxParticipants && ` / ${group.maxParticipants}`}
                     </span>
                     <span className={`px-2 py-1 rounded-full text-xs ${
-                      groupManager.hasAvailableSpots(group) 
+                      hasAvailableSpots(group) 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-red-100 text-red-800'
                     }`}>
-                      {groupManager.hasAvailableSpots(group) ? 'Dostępne miejsca' : 'Pełna'}
+                      {hasAvailableSpots(group) ? `Wolne miejsca: ${getAvailableSpots(group)}` : 'Pełna'}
                     </span>
                   </div>
                 </div>
@@ -537,7 +464,7 @@ export default function AdminGroupManager() {
                     onClick={() => openAddUserModal(group)}
                     className="text-green-600 hover:text-green-700"
                   >
-                    <UserIcon className="h-4 w-4" />
+                    <UserPlusIcon className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="outline"
@@ -561,7 +488,7 @@ export default function AdminGroupManager() {
         </div>
       )}
 
-      {/* Modal tworzenia grupy */}
+      {/* Create Group Modal */}
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -569,11 +496,12 @@ export default function AdminGroupManager() {
       >
         <div className="space-y-4">
           <Input
-            label="Nazwa grupy"
+            label="Nazwa grupy *"
             placeholder="Wprowadź nazwę grupy"
             value={newGroup.name}
             onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
             required
+            maxLength={255}
           />
           
           <TextArea
@@ -582,10 +510,11 @@ export default function AdminGroupManager() {
             value={newGroup.description || ''}
             onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
             rows={3}
+            maxLength={2000}
           />
           
           <Input
-            label="Maksymalna liczba członków (opcjonalne)"
+            label="Maksymalna liczba członków"
             type="number"
             placeholder="Bez limitu"
             value={newGroup.maxParticipants || ''}
@@ -593,12 +522,15 @@ export default function AdminGroupManager() {
               ...newGroup, 
               maxParticipants: e.target.value ? parseInt(e.target.value) : undefined 
             })}
-            min="1"
+            min="0"
           />
           
           <div className="flex gap-2 pt-4">
-            <Button onClick={handleCreateGroup} disabled={!newGroup.name.trim() || loading}>
-              Utwórz grupę
+            <Button 
+              onClick={handleCreateGroup} 
+              disabled={!newGroup.name.trim() || loading}
+            >
+              {loading ? 'Tworzenie...' : 'Utwórz grupę'}
             </Button>
             <Button variant="outline" onClick={() => setShowCreateModal(false)}>
               Anuluj
@@ -607,7 +539,7 @@ export default function AdminGroupManager() {
         </div>
       </Modal>
 
-      {/* Modal edycji grupy */}
+      {/* Edit Group Modal */}
       <Modal
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
@@ -615,11 +547,12 @@ export default function AdminGroupManager() {
       >
         <div className="space-y-4">
           <Input
-            label="Nazwa grupy"
+            label="Nazwa grupy *"
             placeholder="Wprowadź nazwę grupy"
             value={editGroup.name || ''}
             onChange={(e) => setEditGroup({ ...editGroup, name: e.target.value })}
             required
+            maxLength={255}
           />
           
           <TextArea
@@ -628,10 +561,11 @@ export default function AdminGroupManager() {
             value={editGroup.description || ''}
             onChange={(e) => setEditGroup({ ...editGroup, description: e.target.value })}
             rows={3}
+            maxLength={2000}
           />
           
           <Input
-            label="Maksymalna liczba członków (opcjonalne)"
+            label="Maksymalna liczba członków"
             type="number"
             placeholder="Bez limitu"
             value={editGroup.maxParticipants || ''}
@@ -639,12 +573,15 @@ export default function AdminGroupManager() {
               ...editGroup, 
               maxParticipants: e.target.value ? parseInt(e.target.value) : undefined 
             })}
-            min="1"
+            min="0"
           />
           
           <div className="flex gap-2 pt-4">
-            <Button onClick={handleEditGroup} disabled={!editGroup.name?.trim() || loading}>
-              Zapisz zmiany
+            <Button 
+              onClick={handleUpdateGroup} 
+              disabled={!editGroup.name?.trim() || loading}
+            >
+              {loading ? 'Zapisywanie...' : 'Zapisz zmiany'}
             </Button>
             <Button variant="outline" onClick={() => setShowEditModal(false)}>
               Anuluj
@@ -653,14 +590,14 @@ export default function AdminGroupManager() {
         </div>
       </Modal>
 
-      {/* Modal dodawania użytkownika do grupy */}
+      {/* Add User Modal */}
       <Modal
         isOpen={showAddUserModal}
         onClose={() => setShowAddUserModal(false)}
         title={`Dodaj użytkownika do grupy: ${selectedGroup?.name}`}
       >
         <div className="space-y-4">
-          {/* Wyszukiwarka użytkowników */}
+          {/* User Search */}
           <div className="flex gap-2">
             <div className="flex-1">
               <Input
@@ -670,14 +607,20 @@ export default function AdminGroupManager() {
                 onKeyPress={(e) => e.key === 'Enter' && handleUserSearch()}
               />
             </div>
-            <Button onClick={handleUserSearch} variant="outline">
+            <Button onClick={handleUserSearch} variant="outline" disabled={usersLoading}>
               <MagnifyingGlassIcon className="h-4 w-4" />
             </Button>
           </div>
 
-          {/* Lista użytkowników */}
+          {/* Users List */}
           <div className="max-h-60 overflow-y-auto">
-            {error && (
+            {usersLoading && (
+              <div className="flex justify-center py-4">
+                <LoadingSpinner />
+              </div>
+            )}
+            
+            {usersError && (
               <div className="text-center py-4">
                 <p className="text-sm text-red-600 mb-2">Błąd ładowania użytkowników</p>
                 <Button size="sm" variant="outline" onClick={loadUsers}>
@@ -685,14 +628,17 @@ export default function AdminGroupManager() {
                 </Button>
               </div>
             )}
-            {!error && users.length === 0 ? (
+            
+            {!usersLoading && !usersError && users.length === 0 && (
               <p className="text-sm text-gray-600 text-center py-4">
-                {userSearchTerm ? 'Nie znaleziono użytkowników' : 'Ładowanie użytkowników...'}
+                {userSearchTerm ? 'Nie znaleziono użytkowników' : 'Brak użytkowników'}
               </p>
-            ) : !error && (
+            )}
+            
+            {!usersLoading && !usersError && users.length > 0 && (
               <div className="space-y-2">
                 {users
-                  .filter(user => !selectedGroup?.participants.some(p => p.id === user.id))
+                  .filter(user => !selectedGroup?.participants?.some(p => p.id === user.id))
                   .map((user) => (
                     <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
                       <div className="flex items-center space-x-3">
@@ -715,7 +661,8 @@ export default function AdminGroupManager() {
                       </Button>
                     </div>
                   ))}
-                {users.filter(user => !selectedGroup?.participants.some(p => p.id === user.id)).length === 0 && (
+                
+                {users.filter(user => !selectedGroup?.participants?.some(p => p.id === user.id)).length === 0 && (
                   <p className="text-sm text-gray-600 text-center py-4">
                     Wszyscy użytkownicy są już członkami tej grupy
                   </p>
@@ -732,7 +679,7 @@ export default function AdminGroupManager() {
         </div>
       </Modal>
 
-      {/* Modal szczegółów grupy */}
+      {/* Group Details Modal */}
       <Modal
         isOpen={showDetailsModal}
         onClose={() => setShowDetailsModal(false)}
@@ -740,26 +687,14 @@ export default function AdminGroupManager() {
       >
         {selectedGroup && (
           <div className="space-y-6">
+            {/* Group Info */}
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <strong>ID grupy:</strong> {selectedGroup.id}
-              </div>
-              <div>
-                <strong>Utworzono:</strong> {groupManager.formatGroupDate(selectedGroup.createdAt)}
-              </div>
-              <div>
-                <strong>Organizator:</strong> {selectedGroup.organizer?.firstName || 'Nieznany'} {selectedGroup.organizer?.surname || ''}
-              </div>
-              <div>
-                <strong>ID organizatora:</strong> {selectedGroup.organizer?.id || 'N/A'}
-              </div>
-              <div>
-                <strong>Członkowie:</strong> {selectedGroup.participants?.length || 0}
+              <div><strong>ID grupy:</strong> {selectedGroup.id}</div>
+              <div><strong>Utworzono:</strong> {formatGroupDate(selectedGroup.createdAt)}</div>
+              <div><strong>Członkowie:</strong> {selectedGroup.participants?.length || 0}
                 {selectedGroup.maxParticipants && ` / ${selectedGroup.maxParticipants}`}
               </div>
-              <div>
-                <strong>Dostępne miejsca:</strong> {groupManager.getAvailableSpots(selectedGroup)}
-              </div>
+              <div><strong>Dostępne miejsca:</strong> {getAvailableSpots(selectedGroup)}</div>
             </div>
             
             {selectedGroup.description && (
@@ -769,6 +704,7 @@ export default function AdminGroupManager() {
               </div>
             )}
             
+            {/* Members List */}
             <div>
               <h4 className="font-medium text-gray-900 mb-3">
                 Lista członków ({selectedGroup.participants?.length || 0})
@@ -781,33 +717,35 @@ export default function AdminGroupManager() {
                     <div key={participant.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                       <div className="flex items-center space-x-3">
                         <UserIcon className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm">
-                          {participant.firstName || 'Nieznany'} {participant.surname || ''}
-                        </span>
+                        <div>
+                          <span className="text-sm font-medium">
+                            {participant.firstName || 'Nieznany'} {participant.surname || ''}
+                          </span>
+                          <div className="text-xs text-gray-500">ID: {participant.id}</div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500">ID: {participant.id}</span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRemoveUserFromGroup(participant.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          Usuń
-                        </Button>
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleRemoveUserFromGroup(participant.id)}
+                        className="text-red-600 hover:text-red-700"
+                        disabled={loading}
+                      >
+                        <UserMinusIcon className="h-4 w-4" />
+                      </Button>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
+            {/* Actions */}
             <div className="flex gap-2 pt-4 border-t">
               <Button
                 variant="outline"
                 onClick={() => openAddUserModal(selectedGroup)}
               >
-                <UserIcon className="h-4 w-4 mr-2" />
+                <UserPlusIcon className="h-4 w-4 mr-2" />
                 Dodaj użytkownika
               </Button>
               <Button
@@ -828,6 +766,64 @@ export default function AdminGroupManager() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Filters Modal */}
+      <Modal
+        isOpen={showFiltersModal}
+        onClose={() => setShowFiltersModal(false)}
+        title="Zaawansowane filtry"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Wyszukaj"
+            placeholder="Wprowadź frazę do wyszukania"
+            value={filters.searchTerm || ''}
+            onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
+          />
+          
+          <Select
+            label="Wyszukaj w"
+            value={filters.searchType || 'title'}
+            onChange={(e) => setFilters({ ...filters, searchType: e.target.value as 'title' | 'description' })}
+            options={[
+              { value: 'title', label: 'Nazwa grupy' },
+              { value: 'description', label: 'Opis grupy' }
+            ]}
+          />
+          
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="hasSpots"
+              checked={filters.hasAvailableSpots || false}
+              onChange={(e) => setFilters({ ...filters, hasAvailableSpots: e.target.checked })}
+              className="mr-2"
+            />
+            <label htmlFor="hasSpots" className="text-sm">
+              Tylko grupy z wolnymi miejscami
+            </label>
+          </div>
+          
+          <Input
+            label="Data utworzenia"
+            type="date"
+            value={filters.createdAt || ''}
+            onChange={(e) => setFilters({ ...filters, createdAt: e.target.value })}
+          />
+          
+          <div className="flex gap-2 pt-4">
+            <Button onClick={handleApplyFilters} disabled={loading}>
+              Zastosuj filtry
+            </Button>
+            <Button variant="outline" onClick={handleResetFilters}>
+              Resetuj
+            </Button>
+            <Button variant="outline" onClick={() => setShowFiltersModal(false)}>
+              Anuluj
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

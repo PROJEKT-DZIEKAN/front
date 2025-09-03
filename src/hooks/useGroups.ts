@@ -1,289 +1,409 @@
 import { useState, useCallback } from 'react';
-import { Group, CreateGroupRequest, UpdateGroupRequest, GroupPermissions } from '@/types/group';
+import { Group, CreateGroupRequest, UpdateGroupRequest, GroupSearchFilters } from '@/types/group';
 import { 
   getAllGroups, 
   getGroupById,
-  getMyGroups, 
   createGroup, 
   updateGroup,
   deleteGroup,
-  joinGroup,
-  leaveGroup,
-  searchGroupsByName 
+  addParticipantToGroup,
+  removeParticipantFromGroup,
+  searchGroupsByTitle,
+  searchGroupsByDescription,
+  getGroupsWithAvailableSpots,
+  getGroupsCreatedAt,
+  getMyGroups
 } from '@/utils/apiClient';
-import { groupManager } from '@/utils/groupManager';
 import { useAuth } from '@/context/AuthContext';
 
-export function useGroups() {
+export const useGroups = () => {
   const { user, isAuthenticated } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
-  const [myGroups, setMyGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Pobieranie wszystkich grup
-  const loadAllGroups = useCallback(async () => {
-    if (!isAuthenticated) return [];
+  // Helper function to get error message based on status
+  const getErrorMessage = (status: number): string => {
+    switch (status) {
+      case 404: return 'Grupa nie została znaleziona';
+      case 500: return 'Wystąpił błąd serwera. Spróbuj ponownie.';
+      default: return 'Wystąpił nieoczekiwany błąd';
+    }
+  };
+
+  // Clear error
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  // Fetch all groups
+  const fetchAllGroups = useCallback(async (): Promise<Group[]> => {
+    if (!isAuthenticated) {
+      setError('Musisz być zalogowany');
+      return [];
+    }
+
+    setLoading(true);
+    setError(null);
     
     try {
-      setLoading(true);
-      setError(null);
-      const allGroups = await getAllGroups();
-      setGroups(allGroups);
-      return allGroups;
+      const data = await getAllGroups();
+      setGroups(data);
+      return data;
     } catch (err) {
-      const errorMessage = 'Błąd ładowania grup';
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
       setError(errorMessage);
-      console.error(errorMessage, err);
+      console.error('Error fetching groups:', err);
       return [];
     } finally {
       setLoading(false);
     }
   }, [isAuthenticated]);
 
-  // Pobieranie grup użytkownika
-  const loadMyGroups = useCallback(async () => {
-    if (!isAuthenticated || !user) return [];
-    
-    try {
-      setLoading(true);
-      setError(null);
-      const userGroups = await getMyGroups(user.id);
-      setMyGroups(userGroups);
-      return userGroups;
-    } catch (err) {
-      const errorMessage = 'Błąd ładowania moich grup';
-      setError(errorMessage);
-      console.error(errorMessage, err);
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated, user]);
-
-  // Pobieranie wszystkich grup i grup użytkownika
-  const loadGroups = useCallback(async () => {
-    if (!isAuthenticated || !user) return;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      const [allGroups, userGroups] = await Promise.all([
-        getAllGroups(),
-        getMyGroups(user.id)
-      ]);
-      
-      setGroups(allGroups);
-      setMyGroups(userGroups);
-    } catch (err) {
-      const errorMessage = 'Błąd ładowania grup';
-      setError(errorMessage);
-      console.error(errorMessage, err);
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated, user]);
-
-  // Wyszukiwanie grup
-  const searchGroups = useCallback(async (searchTerm: string) => {
-    if (!isAuthenticated) return [];
-    
-    try {
-      setLoading(true);
-      setError(null);
-      const results = await searchGroupsByName(searchTerm);
-      setGroups(results);
-      return results;
-    } catch (err) {
-      const errorMessage = 'Błąd wyszukiwania grup';
-      setError(errorMessage);
-      console.error(errorMessage, err);
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated]);
-
-  // Tworzenie grupy
-  const createNewGroup = useCallback(async (groupData: CreateGroupRequest) => {
-    if (!isAuthenticated || !user) return null;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      const newGroup = await createGroup({
-        ...groupData,
-        organizerId: user.id
-      });
-      
-      // Odświeżenie list grup
-      await loadGroups();
-      return newGroup;
-    } catch (err) {
-      const errorMessage = 'Błąd tworzenia grupy';
-      setError(errorMessage);
-      console.error(errorMessage, err);
+  // Get group by ID
+  const getGroup = useCallback(async (groupId: number): Promise<Group | null> => {
+    if (!isAuthenticated) {
+      setError('Musisz być zalogowany');
       return null;
-    } finally {
-      setLoading(false);
     }
-  }, [isAuthenticated, user, loadGroups]);
 
-  // Aktualizacja grupy
-  const updateExistingGroup = useCallback(async (groupId: number, groupData: UpdateGroupRequest) => {
-    if (!isAuthenticated) return null;
+    setLoading(true);
+    setError(null);
     
     try {
-      setLoading(true);
-      setError(null);
-      const updatedGroup = await updateGroup(groupId, groupData);
-      
-      // Odświeżenie list grup
-      await loadGroups();
-      return updatedGroup;
-    } catch (err) {
-      const errorMessage = 'Błąd aktualizacji grupy';
-      setError(errorMessage);
-      console.error(errorMessage, err);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated, loadGroups]);
-
-  // Usuwanie grupy
-  const deleteExistingGroup = useCallback(async (groupId: number) => {
-    if (!isAuthenticated) return false;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      await deleteGroup(groupId);
-      
-      // Odświeżenie list grup
-      await loadGroups();
-      return true;
-    } catch (err) {
-      const errorMessage = 'Błąd usuwania grupy';
-      setError(errorMessage);
-      console.error(errorMessage, err);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated, loadGroups]);
-
-  // Dołączanie do grupy
-  const joinExistingGroup = useCallback(async (groupId: number) => {
-    if (!isAuthenticated || !user) return false;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      await joinGroup(groupId, user.id);
-      
-      // Odświeżenie list grup
-      await loadGroups();
-      return true;
-    } catch (err) {
-      const errorMessage = 'Błąd dołączania do grupy';
-      setError(errorMessage);
-      console.error(errorMessage, err);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated, user, loadGroups]);
-
-  // Opuszczanie grupy
-  const leaveExistingGroup = useCallback(async (groupId: number) => {
-    if (!isAuthenticated || !user) return false;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      await leaveGroup(groupId, user.id);
-      
-      // Odświeżenie list grup
-      await loadGroups();
-      return true;
-    } catch (err) {
-      const errorMessage = 'Błąd opuszczania grupy';
-      setError(errorMessage);
-      console.error(errorMessage, err);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated, user, loadGroups]);
-
-  // Pobieranie szczegółów grupy
-  const getGroupDetails = useCallback(async (groupId: number) => {
-    if (!isAuthenticated) return null;
-    
-    try {
-      setLoading(true);
-      setError(null);
       const group = await getGroupById(groupId);
       return group;
     } catch (err) {
-      const errorMessage = 'Błąd pobierania szczegółów grupy';
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
       setError(errorMessage);
-      console.error(errorMessage, err);
+      console.error('Error fetching group:', err);
       return null;
     } finally {
       setLoading(false);
     }
   }, [isAuthenticated]);
 
-  // Sprawdzanie uprawnień użytkownika dla grupy
-  const checkPermissions = useCallback((group: Group): GroupPermissions => {
-    if (!user) {
-      return {
-        isOrganizer: false,
-        isParticipant: false,
-        hasSpots: groupManager.hasAvailableSpots(group),
-        availableSpots: groupManager.getAvailableSpots(group)
-      };
+  // Create new group
+  const createNewGroup = useCallback(async (groupData: CreateGroupRequest): Promise<Group | null> => {
+    if (!isAuthenticated) {
+      setError('Musisz być zalogowany');
+      return null;
     }
-    
-    return groupManager.checkGroupPermissions(group, user.id);
-  }, [user]);
 
-  // Funkcje pomocnicze
-  const formatDate = useCallback((dateString: string) => {
-    return groupManager.formatGroupDate(dateString);
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const newGroup = await createGroup(groupData);
+      
+      // Optimistic update
+      setGroups(prev => [...prev, newGroup]);
+      
+      return newGroup;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      setError(errorMessage);
+      console.error('Error creating group:', err);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  // Update group
+  const updateExistingGroup = useCallback(async (groupId: number, groupData: UpdateGroupRequest): Promise<Group | null> => {
+    if (!isAuthenticated) {
+      setError('Musisz być zalogowany');
+      return null;
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const updatedGroup = await updateGroup(groupId, groupData);
+      
+      // Optimistic update
+      setGroups(prev => prev.map(group => 
+        group.id === groupId ? updatedGroup : group
+      ));
+      
+      return updatedGroup;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      setError(errorMessage);
+      console.error('Error updating group:', err);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  // Delete group
+  const deleteExistingGroup = useCallback(async (groupId: number): Promise<boolean> => {
+    if (!isAuthenticated) {
+      setError('Musisz być zalogowany');
+      return false;
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      await deleteGroup(groupId);
+      
+      // Optimistic update
+      setGroups(prev => prev.filter(group => group.id !== groupId));
+      
+      return true;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      setError(errorMessage);
+      console.error('Error deleting group:', err);
+      
+      // Rollback on error
+      fetchAllGroups();
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, fetchAllGroups]);
+
+  // Add participant to group
+  const addParticipant = useCallback(async (groupId: number, userId: number): Promise<boolean> => {
+    if (!isAuthenticated) {
+      setError('Musisz być zalogowany');
+      return false;
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      await addParticipantToGroup(groupId, userId);
+      
+      // Refresh groups to get updated participant list
+      await fetchAllGroups();
+      
+      return true;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      setError(errorMessage);
+      console.error('Error adding participant:', err);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, fetchAllGroups]);
+
+  // Remove participant from group
+  const removeParticipant = useCallback(async (groupId: number, userId: number): Promise<boolean> => {
+    if (!isAuthenticated) {
+      setError('Musisz być zalogowany');
+      return false;
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      await removeParticipantFromGroup(groupId, userId);
+      
+      // Refresh groups to get updated participant list
+      await fetchAllGroups();
+      
+      return true;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      setError(errorMessage);
+      console.error('Error removing participant:', err);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, fetchAllGroups]);
+
+  // Search groups with debounced functionality
+  const searchGroups = useCallback(async (filters: GroupSearchFilters): Promise<Group[]> => {
+    if (!isAuthenticated) {
+      setError('Musisz być zalogowany');
+      return [];
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      let results: Group[] = [];
+
+      if (!filters.searchTerm || filters.searchTerm.trim() === '') {
+        // If no search term, get all groups or apply other filters
+        results = await getAllGroups();
+      } else {
+        // Search by title or description
+        if (filters.searchType === 'description') {
+          results = await searchGroupsByDescription(filters.searchTerm);
+        } else {
+          results = await searchGroupsByTitle(filters.searchTerm);
+        }
+      }
+
+      // Apply additional filters
+      if (filters.hasAvailableSpots) {
+        results = results.filter(group => {
+          if (!group.maxParticipants) return true;
+          const participantCount = group.participants?.length || 0;
+          return participantCount < group.maxParticipants;
+        });
+      }
+
+      if (filters.createdAt) {
+        const filterDate = new Date(filters.createdAt).toDateString();
+        results = results.filter(group => {
+          const groupDate = new Date(group.createdAt).toDateString();
+          return groupDate === filterDate;
+        });
+      }
+
+      setGroups(results);
+      return results;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      setError(errorMessage);
+      console.error('Error searching groups:', err);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  // Get groups with available spots
+  const fetchGroupsWithSpots = useCallback(async (): Promise<Group[]> => {
+    if (!isAuthenticated) {
+      setError('Musisz być zalogowany');
+      return [];
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const data = await getGroupsWithAvailableSpots();
+      setGroups(data);
+      return data;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      setError(errorMessage);
+      console.error('Error fetching groups with spots:', err);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  // Get groups created at specific date
+  const fetchGroupsCreatedAt = useCallback(async (dateTime: string): Promise<Group[]> => {
+    if (!isAuthenticated) {
+      setError('Musisz być zalogowany');
+      return [];
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const data = await getGroupsCreatedAt(dateTime);
+      setGroups(data);
+      return data;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      setError(errorMessage);
+      console.error('Error fetching groups by date:', err);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  // Get user's groups
+  const fetchMyGroups = useCallback(async (): Promise<Group[]> => {
+    if (!isAuthenticated || !user) {
+      setError('Musisz być zalogowany');
+      return [];
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const data = await getMyGroups(user.id);
+      return data;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      setError(errorMessage);
+      console.error('Error fetching my groups:', err);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, user]);
+
+  // Utility functions
+  const hasAvailableSpots = useCallback((group: Group): boolean => {
+    if (!group.maxParticipants) return true;
+    const participantCount = group.participants?.length || 0;
+    return participantCount < group.maxParticipants;
   }, []);
 
-  const clearError = useCallback(() => {
-    setError(null);
+  const getAvailableSpots = useCallback((group: Group): number | string => {
+    if (!group.maxParticipants) return 'Unlimited';
+    const participantCount = group.participants?.length || 0;
+    return Math.max(0, group.maxParticipants - participantCount);
+  }, []);
+
+  const formatGroupDate = useCallback((dateString: string): string => {
+    try {
+      return new Date(dateString).toLocaleDateString('pl-PL', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return dateString;
+    }
+  }, []);
+
+  const isUserParticipant = useCallback((group: Group, userId: number): boolean => {
+    return group.participants?.some(participant => participant.id === userId) || false;
   }, []);
 
   return {
     // State
     groups,
-    myGroups,
     loading,
     error,
     
     // Actions
-    loadAllGroups,
-    loadMyGroups,
-    loadGroups,
-    searchGroups,
+    fetchAllGroups,
+    getGroup,
     createNewGroup,
     updateExistingGroup,
     deleteExistingGroup,
-    joinExistingGroup,
-    leaveExistingGroup,
-    getGroupDetails,
+    addParticipant,
+    removeParticipant,
+    searchGroups,
+    fetchGroupsWithSpots,
+    fetchGroupsCreatedAt,
+    fetchMyGroups,
     
     // Utils
-    checkPermissions,
-    formatDate,
     clearError,
-    
-    // Manager instance
-    groupManager
+    hasAvailableSpots,
+    getAvailableSpots,
+    formatGroupDate,
+    isUserParticipant,
+    getErrorMessage
   };
-}
+};
