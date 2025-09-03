@@ -9,7 +9,7 @@ export interface User {
   surname: string;
   registrationStatus?: string;
   roles?: string[]; // Dodaję role z JWT tokenu - zachowuję dla kompatybilności
-  roleObjects?: Role[]; // Dodaję obiekty ról jak w kodzie Java
+  roleObjects?: Role[]; // Dodaję obiekty ról jak w kodzie Java ....
 }
 
 export interface AuthTokens {
