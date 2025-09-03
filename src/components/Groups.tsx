@@ -468,7 +468,7 @@ export default function Groups() {
         </div>
       </Modal>
 
-      {/* Group Details Modal */}
+      {/* Group Details Modal*/}
       <Modal
         isOpen={showDetailsModal}
         onClose={() => setShowDetailsModal(false)}
