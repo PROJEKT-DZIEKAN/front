@@ -1,175 +1,105 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
-import axios from 'axios';
-import { AuthContextType, User, AuthTokens } from '@/types/auth';
-import { 
-  extractUserFromToken, 
-  getTokens, 
-  saveTokens, 
-  clearTokens, 
-  API_BASE_URL 
-} from '@/utils/authUtils';
-import { handleAxiosError } from '@/utils/apiClient';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User, AuthContextType } from '@/types/auth';
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [token, setToken] = useState<string | null>(null);
 
-  // Sprawdzanie uprawnień admina - na podstawie ról z JWT tokenu
-  const isAdmin = useMemo(() => {
-    const hasAdminRole = isAuthenticated && (
-      user?.roles?.includes('admin') || 
-      user?.roles?.includes('ADMIN') ||
-      user?.roles?.some((role: string | { roleName?: string }) => 
-        typeof role === 'object' && (role?.roleName === 'admin' || role?.roleName === 'ADMIN')
-      )
-    );
-    console.log('🔍 isAdmin check:', { isAuthenticated, userRoles: user?.roles, hasAdminRole });
-    return hasAdminRole || false;
-  }, [isAuthenticated, user]);
-
-  const logout = useCallback(() => {
-    setUser(null);
-    setIsAuthenticated(false);
-    clearTokens();
-    setToken(null);
-  }, []);
-
-  const refreshAccessToken = useCallback(async (): Promise<boolean> => {
-    try {
-      const tokens = getTokens();
-      if (!tokens) return false;
-
-      const response = await axios.post(`${API_BASE_URL}/api/refresh-token`, {
-        refreshToken: tokens.refreshToken
-      });
-
-      const newTokens: AuthTokens = {
-        accessToken: response.data.accessToken,
-        refreshToken: response.data.refreshToken
-      };
-
-      saveTokens(newTokens);
-      setToken(newTokens.accessToken);
-      return true;
-      
-    } catch (error) {
-      console.error('Błąd odświeżania tokenu:', error);
-      logout();
-      return false;
+  useEffect(() => {
+    const savedToken = localStorage.getItem('authToken');
+    const savedUser = localStorage.getItem('user');
+    
+    if (savedToken && savedUser) {
+      setToken(savedToken);
+      setUser(JSON.parse(savedUser));
     }
-  }, [logout]);
+    setIsLoading(false);
+  }, []);
 
   const loginWithUserId = async (userId: number): Promise<boolean> => {
     try {
-      setIsLoading(true);
+      const mockUsers: User[] = [
+        { id: 1, firstName: 'Jan', surname: 'Kowalski', roles: ['ADMIN'] },
+        { id: 2, firstName: 'Anna', surname: 'Nowak', roles: ['ADMIN'] },
+        { id: 3, firstName: 'Piotr', surname: 'Wiśniewski', roles: ['USER'] },
+        { id: 4, firstName: 'Maria', surname: 'Wójcik', roles: ['USER'] },
+      ];
+
+      const mockUser = mockUsers.find(u => u.id === userId);
+      if (!mockUser) return false;
+
+      const mockToken = `mock_token_${userId}_${Date.now()}`;
       
-      const response = await axios.post(`${API_BASE_URL}/api/auth/login-by-id`, {
-        userId: userId
-      });
-
-      const tokens: AuthTokens = {
-        accessToken: response.data.accessToken,
-        refreshToken: response.data.refreshToken
-      };
-
-      saveTokens(tokens);
-
-      // Wyciągnij dane usera z JWT tokenu zamiast robić dodatkowe zapytanie
-      const userData = extractUserFromToken(tokens.accessToken);
-      if (!userData) {
-        throw new Error('Nie można wyciągnąć danych z tokenu');
-      }
-
-      setUser(userData);
-      setIsAuthenticated(true);
-      setToken(tokens.accessToken);
+      setUser(mockUser);
+      setToken(mockToken);
+      localStorage.setItem('user', JSON.stringify(mockUser));
+      localStorage.setItem('authToken', mockToken);
+      
       return true;
-      
-    } catch (error) {
-      handleAxiosError(error, 'logowania');
-      clearTokens();
+    } catch {
       return false;
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const loadUserFromStorage = useCallback(async () => {
+  const login = async (authToken: string): Promise<void> => {
     try {
-      const tokens = getTokens();
-      if (!tokens) {
-        setIsLoading(false);
-        return;
-      }
-
-      // Wyciągnij dane usera z JWT tokenu zamiast robić dodatkowe zapytanie
-      const userData = extractUserFromToken(tokens.accessToken);
-      if (!userData) {
-        // Jeśli token jest nieprawidłowy, spróbuj odświeżyć
-        const refreshSuccess = await refreshAccessToken();
-        if (refreshSuccess) {
-          const newTokens = getTokens();
-          if (newTokens) {
-            const newUserData = extractUserFromToken(newTokens.accessToken);
-            if (newUserData) {
-              setUser(newUserData);
-              setIsAuthenticated(true);
-              setToken(newTokens.accessToken);
-            }
-          }
-        } else {
-          clearTokens();
-        }
-        return;
-      }
-
-      setUser(userData);
-      setIsAuthenticated(true);
-      setToken(tokens.accessToken);
+      const response = await fetch('/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
       
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+        setToken(authToken);
+        localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('authToken', authToken);
+      }
     } catch (error) {
-      console.error('Błąd ładowania użytkownika:', error);
-      
-      const refreshSuccess = await refreshAccessToken();
-      if (refreshSuccess) {
-        const newTokens = getTokens();
-        if (newTokens) {
-          const newUserData = extractUserFromToken(newTokens.accessToken);
-          if (newUserData) {
-            setUser(newUserData);
-            setIsAuthenticated(true);
-            setToken(newTokens.accessToken);
-          }
-        }
-      } else {
-        clearTokens();
+      console.error('Login failed:', error);
+    }
+  };
+
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('authToken');
+  };
+
+  const refreshAccessToken = async (): Promise<boolean> => {
+    try {
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (!refreshToken) return false;
+
+      const response = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken })
+      });
+
+      if (response.ok) {
+        const { accessToken } = await response.json();
+        setToken(accessToken);
+        localStorage.setItem('authToken', accessToken);
+        return true;
       }
-    } finally {
-      setIsLoading(false);
+      return false;
+    } catch {
+      return false;
     }
-  }, [refreshAccessToken]);
+  };
 
-  useEffect(() => {
-    loadUserFromStorage();
-  }, [loadUserFromStorage]);
-
-  // Dodaję funkcję login dla kompatybilności
-  const login = useCallback(async (authToken: string) => {
-    setToken(authToken);
-    localStorage.setItem('accessToken', authToken);
-    
-    const userData = extractUserFromToken(authToken);
-    if (userData) {
-      setUser(userData);
-      setIsAuthenticated(true);
-    }
-  }, []);
+  const isAdmin = user?.roles?.includes('ADMIN') || false;
+  const isAuthenticated = !!user && !!token;
 
   const value: AuthContextType = {
     user,
@@ -180,21 +110,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     refreshAccessToken,
-    loading: isLoading, // alias
+    loading: isLoading,
     token,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
 
-export function useAuth() {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth musi być używany wewnątrz AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
+};
+
+export const useAuthContext = useAuth;

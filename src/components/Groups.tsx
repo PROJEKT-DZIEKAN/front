@@ -42,7 +42,6 @@ export default function Groups() {
     isUserParticipant
   } = useGroups();
 
-  // State
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'title' | 'description'>('title');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -52,21 +51,18 @@ export default function Groups() {
   const [activeTab, setActiveTab] = useState<'all' | 'my' | 'available'>('all');
   const [myGroups, setMyGroups] = useState<Group[]>([]);
 
-  // Form state
   const [newGroup, setNewGroup] = useState<CreateGroupRequest>({
     name: '',
     description: '',
     maxParticipants: undefined
   });
 
-  // Filters
   const [filters, setFilters] = useState<GroupSearchFilters>({
     searchTerm: '',
     searchType: 'title',
     hasAvailableSpots: false
   });
 
-  // Load groups based on active tab
   const loadGroupsForTab = useCallback(async () => {
     try {
       switch (activeTab) {
@@ -88,37 +84,25 @@ export default function Groups() {
     }
   }, [activeTab, fetchAllGroups, fetchMyGroups, fetchGroupsWithSpots, user]);
 
-  // Search groups
   const handleSearch = useCallback(async () => {
     if (!searchTerm.trim()) {
       loadGroupsForTab();
       return;
     }
-
     const searchFilters: GroupSearchFilters = {
       searchTerm,
       searchType,
       hasAvailableSpots: activeTab === 'available'
     };
-
     await searchGroups(searchFilters);
   }, [searchTerm, searchType, activeTab, searchGroups, loadGroupsForTab]);
 
-  // Create group
   const handleCreateGroup = async () => {
     if (!newGroup.name.trim()) return;
-
     try {
       const createdGroup = await createNewGroup(newGroup);
-      
       if (createdGroup) {
-        // Reset form
-        setNewGroup({
-          name: '',
-          description: '',
-          maxParticipants: undefined
-        });
-        
+        setNewGroup({ name: '', description: '', maxParticipants: undefined });
         setShowCreateModal(false);
         await loadGroupsForTab();
       }
@@ -127,20 +111,16 @@ export default function Groups() {
     }
   };
 
-  // Join group
   const handleJoinGroup = async (groupId: number) => {
     if (!user) return;
-
     const success = await addParticipant(groupId, user.id);
     if (success) {
       await loadGroupsForTab();
     }
   };
 
-  // Leave group
   const handleLeaveGroup = async (groupId: number) => {
     if (!user) return;
-
     const success = await removeParticipant(groupId, user.id);
     if (success) {
       await loadGroupsForTab();
@@ -151,38 +131,29 @@ export default function Groups() {
     }
   };
 
-  // Show group details
   const showGroupDetails = (group: Group) => {
     setSelectedGroup(group);
     setShowDetailsModal(true);
   };
 
-  // Apply advanced filters
   const handleApplyFilters = async () => {
     await searchGroups(filters);
     setShowFiltersModal(false);
   };
 
-  // Reset filters
   const handleResetFilters = () => {
-    setFilters({
-      searchTerm: '',
-      searchType: 'title',
-      hasAvailableSpots: false
-    });
+    setFilters({ searchTerm: '', searchType: 'title', hasAvailableSpots: false });
     setSearchTerm('');
     setSearchType('title');
     loadGroupsForTab();
   };
 
-  // Load groups on mount and tab change
   useEffect(() => {
     if (isAuthenticated) {
       loadGroupsForTab();
     }
   }, [isAuthenticated, activeTab, loadGroupsForTab]);
 
-  // Get current groups based on active tab
   const getCurrentGroups = () => {
     switch (activeTab) {
       case 'my':
@@ -207,32 +178,23 @@ export default function Groups() {
 
   return (
     <div className="p-4 space-y-6">
-      {/* Header */}
       <div className="text-center">
         <UserGroupIcon className="h-12 w-12 text-blue-500 mx-auto mb-4" />
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Grupy</h1>
         <p className="text-gray-600">Znajdź i dołącz do grup które Cię interesują</p>
       </div>
 
-      {/* Error Alert */}
       {error && (
         <Alert type="error" title="Błąd">
           {error}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={clearError}
-            className="mt-2"
-          >
+          <Button variant="outline" size="sm" onClick={clearError} className="mt-2">
             Zamknij
           </Button>
         </Alert>
       )}
 
-      {/* Controls */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
-          {/* Search */}
           <div className="flex-1 flex gap-2">
             <div className="flex-1">
               <Input
@@ -256,7 +218,6 @@ export default function Groups() {
             </Button>
           </div>
           
-          {/* Action buttons */}
           <div className="flex gap-2">
             <Button onClick={() => setShowFiltersModal(true)} variant="outline">
               <FunnelIcon className="h-4 w-4 mr-2" />
@@ -272,7 +233,6 @@ export default function Groups() {
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-gray-200 mb-4">
           <button
             onClick={() => setActiveTab('all')}
@@ -306,14 +266,12 @@ export default function Groups() {
           </button>
         </div>
 
-        {/* Loading */}
         {loading && (
           <div className="flex justify-center py-8">
             <LoadingSpinner />
           </div>
         )}
 
-        {/* Groups List */}
         {!loading && currentGroups.length === 0 ? (
           <div className="text-center py-8">
             <UserGroupIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -331,10 +289,7 @@ export default function Groups() {
               const availableSpots = getAvailableSpots(group);
               
               return (
-                <div
-                  key={group.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                >
+                <div key={group.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900 mb-1">{group.name}</h3>
@@ -344,11 +299,7 @@ export default function Groups() {
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => showGroupDetails(group)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => showGroupDetails(group)}>
                         Szczegóły
                       </Button>
                     </div>
@@ -381,23 +332,14 @@ export default function Groups() {
                     
                     <div className="flex gap-2">
                       {!userIsParticipant && groupHasSpots && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleJoinGroup(group.id)}
-                          disabled={loading}
-                        >
+                        <Button size="sm" onClick={() => handleJoinGroup(group.id)} disabled={loading}>
                           <UserPlusIcon className="h-4 w-4 mr-1" />
                           Dołącz
                         </Button>
                       )}
                       
                       {userIsParticipant && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleLeaveGroup(group.id)}
-                          disabled={loading}
-                        >
+                        <Button variant="outline" size="sm" onClick={() => handleLeaveGroup(group.id)} disabled={loading}>
                           <UserMinusIcon className="h-4 w-4 mr-1" />
                           Opuść
                         </Button>
@@ -417,12 +359,7 @@ export default function Groups() {
         )}
       </div>
 
-      {/* Create Group Modal */}
-      <Modal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        title="Utwórz nową grupę"
-      >
+      <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Utwórz nową grupę">
         <div className="space-y-4">
           <Input
             label="Nazwa grupy *"
@@ -455,10 +392,7 @@ export default function Groups() {
           />
           
           <div className="flex gap-2 pt-4">
-            <Button 
-              onClick={handleCreateGroup} 
-              disabled={!newGroup.name.trim() || loading}
-            >
+            <Button onClick={handleCreateGroup} disabled={!newGroup.name.trim() || loading}>
               {loading ? 'Tworzenie...' : 'Utwórz grupę'}
             </Button>
             <Button variant="outline" onClick={() => setShowCreateModal(false)}>
@@ -468,12 +402,7 @@ export default function Groups() {
         </div>
       </Modal>
 
-      {/* Group Details Modal*/}
-      <Modal
-        isOpen={showDetailsModal}
-        onClose={() => setShowDetailsModal(false)}
-        title={selectedGroup?.name || ''}
-      >
+      <Modal isOpen={showDetailsModal} onClose={() => setShowDetailsModal(false)} title={selectedGroup?.name || ''}>
         {selectedGroup && (
           <div className="space-y-4">
             <div>
@@ -516,12 +445,7 @@ export default function Groups() {
         )}
       </Modal>
 
-      {/* Filters Modal */}
-      <Modal
-        isOpen={showFiltersModal}
-        onClose={() => setShowFiltersModal(false)}
-        title="Zaawansowane filtry"
-      >
+      <Modal isOpen={showFiltersModal} onClose={() => setShowFiltersModal(false)} title="Zaawansowane filtry">
         <div className="space-y-4">
           <Input
             label="Wyszukaj"

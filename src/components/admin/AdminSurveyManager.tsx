@@ -49,11 +49,7 @@ export default function AdminSurveyManager() {
   }
 
   const resetForm = () => {
-    setFormData({
-      title: '',
-      description: '',
-      questions: []
-    });
+    setFormData({ title: '', description: '', questions: [] });
   };
 
   const handleCreateSurvey = () => {
@@ -103,9 +99,7 @@ export default function AdminSurveyManager() {
     setFormData(prev => ({
       ...prev,
       questions: prev.questions.map((q, i) => 
-        i === questionIndex 
-          ? { ...q, options: [...q.options, ''] }
-          : q
+        i === questionIndex ? { ...q, options: [...q.options, ''] } : q
       )
     }));
   };
@@ -114,12 +108,10 @@ export default function AdminSurveyManager() {
     setFormData(prev => ({
       ...prev,
       questions: prev.questions.map((q, i) => 
-        i === questionIndex 
-          ? { 
-              ...q, 
-              options: q.options.map((opt, oi) => oi === optionIndex ? value : opt)
-            }
-          : q
+        i === questionIndex ? {
+          ...q,
+          options: q.options.map((opt, j) => j === optionIndex ? value : opt)
+        } : q
       )
     }));
   };
@@ -128,330 +120,258 @@ export default function AdminSurveyManager() {
     setFormData(prev => ({
       ...prev,
       questions: prev.questions.map((q, i) => 
-        i === questionIndex 
-          ? { ...q, options: q.options.filter((_, oi) => oi !== optionIndex) }
-          : q
+        i === questionIndex ? {
+          ...q,
+          options: q.options.filter((_, j) => j !== optionIndex)
+        } : q
       )
     }));
   };
 
-  const handleSubmitSurvey = async () => {
-    if (!formData.title.trim() || formData.questions.length === 0) {
-      alert('Wypełnij wszystkie wymagane pola');
-      return;
-    }
+  const handleSubmit = async () => {
+    if (!formData.title.trim() || formData.questions.length === 0) return;
+
+    const validQuestions = formData.questions.filter(q => 
+      q.text.trim() && q.options.length > 0 && q.options.every(opt => opt.trim())
+    );
+
+    if (validQuestions.length === 0) return;
 
     setProcessing(true);
-
-    const surveyRequest: CreateSurveyRequest = {
-      title: formData.title,
-      description: formData.description,
-      questions: formData.questions.map(q => ({
-        text: q.text,
-        type: q.type,
-        surveyOptions: q.options.filter(opt => opt.trim()).map(opt => ({ text: opt.trim() }))
-      }))
-    };
-
     try {
-      if (editingSurvey) {
-        await updateExistingSurvey(editingSurvey.id!, {
-          ...surveyRequest,
-          questions: surveyRequest.questions.map((q, i) => ({
-            ...q,
-            id: editingSurvey.questions[i]?.id,
-            surveyOptions: q.surveyOptions.map((opt, oi) => ({
-              ...opt,
-              id: editingSurvey.questions[i]?.surveyOptions[oi]?.id
-            }))
-          }))
-        });
-      } else {
-        await createNewSurvey(surveyRequest);
-      }
-      
+      const surveyData: CreateSurveyRequest = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        questions: validQuestions.map(q => ({
+          text: q.text.trim(),
+          type: q.type,
+          surveyOptions: q.options.map(opt => ({ text: opt.trim() }))
+        }))
+      };
+
+              if (editingSurvey && editingSurvey.id) {
+          await updateExistingSurvey(editingSurvey.id, surveyData);
+        } else {
+          await createNewSurvey(surveyData);
+        }
+
       setShowCreateModal(false);
       resetForm();
-    } catch (err) {
-      console.error('Błąd podczas zapisywania ankiety:', err);
+      setEditingSurvey(null);
+    } catch (error) {
+      console.error('Error saving survey:', error);
     } finally {
       setProcessing(false);
     }
   };
 
-  const handleDeleteSurvey = async () => {
-    if (!deletingSurvey) return;
-
-    setProcessing(true);
-    const success = await removeSurvey(deletingSurvey.id!);
+  const handleDeleteSurvey = async (survey: Survey) => {
+    if (!confirm(`Czy na pewno chcesz usunąć ankietę "${survey.title}"?`)) return;
     
-    if (success) {
+    setDeletingSurvey(survey);
+    try {
+      if (survey.id) {
+        await removeSurvey(survey.id);
+      }
+      setDeletingSurvey(null);
+    } catch (error) {
+      console.error('Error deleting survey:', error);
       setDeletingSurvey(null);
     }
-    
-    setProcessing(false);
   };
 
-  if (loading) {
-    return (
-      <div className="p-6 text-center">
-        <LoadingSpinner />
-        <p className="text-gray-600 mt-4">Ładowanie ankiet...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Zarządzanie Ankietami</h1>
-          <p className="text-gray-600">Twórz i edytuj ankiety dla uczestników</p>
+          <h2 className="text-xl font-semibold text-gray-900">Zarządzanie ankietami</h2>
+          <p className="text-sm text-gray-600">Twórz i edytuj ankiety dla użytkowników</p>
         </div>
-        <Button onClick={handleCreateSurvey} className="flex items-center space-x-2">
-          <PlusIcon className="h-5 w-5" />
-          <span>Nowa Ankieta</span>
+        <Button onClick={handleCreateSurvey}>
+          <PlusIcon className="h-4 w-4 mr-2" />
+          Nowa ankieta
         </Button>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <div className="flex items-center space-x-3">
-            <ExclamationTriangleIcon className="h-5 w-5 text-red-600" />
-            <p className="text-red-800">{error}</p>
-          </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-700">{error}</p>
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        {!Array.isArray(surveys) || surveys.length === 0 ? (
-          <div className="p-12 text-center">
-            <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Brak ankiet</h3>
-            <p className="text-gray-600 mb-4">Rozpocznij od utworzenia pierwszej ankiety</p>
-            <Button onClick={handleCreateSurvey}>Utwórz ankietę</Button>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-200">
-            {Array.isArray(surveys) && surveys.map((survey) => (
-              <div key={survey.id} className="p-6">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">{survey.title}</h3>
-                    <p className="text-gray-600 mb-3">{survey.description}</p>
-                    <div className="flex items-center space-x-4 text-sm text-gray-500">
-                      <span>{Array.isArray(survey.questions) ? survey.questions.length : 0} pytań</span>
-                      {survey.createdAt && (
-                        <span>Utworzono: {new Date(survey.createdAt).toLocaleDateString('pl-PL')}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2 ml-4">
-                    <button
-                      onClick={() => handleEditSurvey(survey)}
-                      className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                      title="Edytuj"
-                    >
-                      <PencilIcon className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => setDeletingSurvey(survey)}
-                      className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                      title="Usuń"
-                    >
-                      <TrashIcon className="h-5 w-5" />
-                    </button>
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <LoadingSpinner />
+        </div>
+      ) : surveys.length === 0 ? (
+        <div className="text-center py-12">
+          <ChartBarIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600">Brak ankiet w systemie</p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {surveys.map((survey) => (
+            <div key={survey.id} className="bg-white border border-gray-200 rounded-lg p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{survey.title}</h3>
+                  {survey.description && (
+                    <p className="text-sm text-gray-700 mb-3">{survey.description}</p>
+                  )}
+                  <div className="text-sm text-gray-500">
+                    Pytania: {survey.questions?.length || 0}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Modal tworzenia/edycji ankiety */}
-      {showCreateModal && (
-        <Modal
-          isOpen={true}
-          onClose={() => setShowCreateModal(false)}
-          title={editingSurvey ? 'Edytuj Ankietę' : 'Nowa Ankieta'}
-          size="xl"
-        >
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tytuł ankiety *
-                </label>
-                <Input
-                  value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Wprowadź tytuł ankiety"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Opis ankiety
-                </label>
-                <TextArea
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Wprowadź opis ankiety"
-                  rows={3}
-                />
+                <div className="flex gap-2 ml-4">
+                  <Button variant="outline" size="sm" onClick={() => handleEditSurvey(survey)}>
+                    <PencilIcon className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleDeleteSurvey(survey)}
+                    disabled={deletingSurvey?.id === survey.id}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
+          ))}
+        </div>
+      )}
 
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+          setEditingSurvey(null);
+          resetForm();
+        }}
+        title={editingSurvey ? `Edytuj ankietę: ${editingSurvey.title}` : 'Nowa ankieta'}
+      >
+        <div className="space-y-4">
+          <Input
+            label="Tytuł ankiety *"
+            placeholder="Wprowadź tytuł ankiety"
+            value={formData.title}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            required
+          />
+          
+          <TextArea
+            label="Opis ankiety"
+            placeholder="Opisz cel ankiety"
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            rows={3}
+          />
+
+          <div>
+            <div className="flex justify-between items-center mb-3">
+              <label className="block text-sm font-medium text-gray-700">Pytania *</label>
+              <Button size="sm" variant="outline" onClick={addQuestion}>
+                <PlusIcon className="h-4 w-4 mr-1" />
+                Dodaj pytanie
+              </Button>
+            </div>
+            
+            {formData.questions.length === 0 && (
+              <p className="text-sm text-gray-500 text-center py-4">
+                Dodaj przynajmniej jedno pytanie
+              </p>
+            )}
+            
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium text-gray-900">Pytania</h3>
-                <Button onClick={addQuestion} size="sm">
-                  <PlusIcon className="h-4 w-4 mr-2" />
-                  Dodaj pytanie
-                </Button>
-              </div>
-
-              {formData.questions.map((question, questionIndex) => (
-                <div key={questionIndex} className="border border-gray-200 rounded-lg p-4 space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-medium text-gray-900">Pytanie {questionIndex + 1}</h4>
-                    <button
-                      onClick={() => removeQuestion(questionIndex)}
-                      className="text-red-500 hover:text-red-700"
+              {formData.questions.map((question, qIndex) => (
+                <div key={qIndex} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Treść pytania"
+                        value={question.text}
+                        onChange={(e) => updateQuestion(qIndex, 'text', e.target.value)}
+                        required
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => removeQuestion(qIndex)}
+                      className="text-red-600 hover:text-red-700 ml-2"
                     >
                       <TrashIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Treść pytania
-                      </label>
-                      <Input
-                        value={question.text}
-                        onChange={(e) => updateQuestion(questionIndex, 'text', e.target.value)}
-                        placeholder="Wprowadź treść pytania"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Typ odpowiedzi
-                      </label>
-                      <Select
-                        value={question.type}
-                        onChange={(e) => updateQuestion(questionIndex, 'type', e.target.value)}
-                        options={[
-                          { value: 'SINGLE', label: 'Jedna odpowiedź' },
-                          { value: 'MULTIPLE', label: 'Wiele odpowiedzi' }
-                        ]}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Opcje odpowiedzi
-                    </label>
-                    {question.options.map((option, optionIndex) => (
-                      <div key={optionIndex} className="flex items-center space-x-2 mb-2">
-                        <Input
-                          value={option}
-                          onChange={(e) => updateOption(questionIndex, optionIndex, e.target.value)}
-                          placeholder={`Opcja ${optionIndex + 1}`}
-                          className="flex-1"
-                        />
-                        <button
-                          onClick={() => removeOption(questionIndex, optionIndex)}
-                          className="text-red-500 hover:text-red-700"
-                          disabled={question.options.length <= 1}
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                    <Button
-                      onClick={() => addOption(questionIndex)}
-                      variant="outline"
-                      size="sm"
-                      className="mt-2"
-                    >
-                      Dodaj opcję
                     </Button>
+                  </div>
+                  
+                  <div className="mb-3">
+                    <Select
+                      value={question.type}
+                      onChange={(e) => updateQuestion(qIndex, 'type', e.target.value as 'SINGLE' | 'MULTIPLE')}
+                      options={[
+                        { value: 'SINGLE', label: 'Jedna odpowiedź' },
+                        { value: 'MULTIPLE', label: 'Wiele odpowiedzi' }
+                      ]}
+                    />
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="text-sm font-medium text-gray-700">Opcje odpowiedzi</label>
+                      <Button size="sm" variant="outline" onClick={() => addOption(qIndex)}>
+                        <PlusIcon className="h-4 w-4 mr-1" />
+                        Dodaj opcję
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {question.options.map((option, oIndex) => (
+                        <div key={oIndex} className="flex gap-2">
+                          <Input
+                            placeholder={`Opcja ${oIndex + 1}`}
+                            value={option}
+                            onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
+                            required
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => removeOption(qIndex, oIndex)}
+                            disabled={question.options.length <= 1}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
-
-            <div className="flex justify-end space-x-3 pt-4 border-t">
-              <Button
-                variant="outline"
-                onClick={() => setShowCreateModal(false)}
-                disabled={processing}
-              >
-                Anuluj
-              </Button>
-              <Button
-                onClick={handleSubmitSurvey}
-                disabled={processing || !formData.title.trim() || formData.questions.length === 0}
-                className="flex items-center space-x-2"
-              >
-                {processing ? (
-                  <>
-                    <LoadingSpinner size="sm" />
-                    <span>Zapisywanie.</span>
-                  </>
-                ) : (
-                  <span>{editingSurvey ? 'Zaktualizuj' : 'Utwórz'} ankietę</span>
-                )}
-              </Button>
-            </div>
           </div>
-        </Modal>
-      )}
 
-      {/* Modal potwierdzenia usunięcia */}
-      {deletingSurvey && (
-        <Modal
-          isOpen={true}
-          onClose={() => setDeletingSurvey(null)}
-          title="Potwierdź usunięcie"
-        >
-          <div className="space-y-4">
-            <p className="text-gray-600">
-              Czy na pewno chcesz usunąć ankietę &quot;{deletingSurvey.title}&quot;? 
-              Ta operacja jest nieodwracalna.
-            </p>
-            
-            <div className="flex justify-end space-x-3">
-              <Button
-                variant="outline"
-                onClick={() => setDeletingSurvey(null)}
-                disabled={processing}
-              >
-                Anuluj
-              </Button>
-              <Button
-                variant="danger"
-                onClick={handleDeleteSurvey}
-                disabled={processing}
-                className="flex items-center space-x-2"
-              >
-                {processing ? (
-                  <>
-                    <LoadingSpinner size="sm" />
-                    <span>Usuwanie...</span>
-                  </>
-                ) : (
-                  <span>Usuń ankietę</span>
-                )}
-              </Button>
-            </div>
+          <div className="flex gap-2 pt-4 border-t">
+            <Button 
+              onClick={handleSubmit} 
+              disabled={!formData.title.trim() || formData.questions.length === 0 || processing}
+            >
+              {processing ? 'Zapisywanie...' : (editingSurvey ? 'Zapisz zmiany' : 'Utwórz ankietę')}
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowCreateModal(false);
+                setEditingSurvey(null);
+                resetForm();
+              }}
+            >
+              Anuluj
+            </Button>
           </div>
-        </Modal>
-      )}
+        </div>
+      </Modal>
     </div>
   );
 }

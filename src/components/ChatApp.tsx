@@ -1,37 +1,24 @@
 'use client';
 
 import { useAuth } from '@/hooks/useAuth';
-import AdminChatPanel from './AdminChatPanel';
 import ChatWithOrganizers from './ChatWithOrganizers';
+import AdminChatPanel from './AdminChatPanel';
 
-export default function ChatApp() {
-  const { user, isAdmin, loading } = useAuth();
+const ChatApp = () => {
+  const { isAuthenticated, isAdmin } = useAuth();
 
-  if (loading) {
+  if (!isAuthenticated) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <div>Ładowanie...</div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Musisz być zalogowany</h3>
+          <p className="text-gray-600">Zaloguj się aby korzystać z chatu</p>
         </div>
       </div>
     );
   }
 
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="text-xl mb-4">Musisz być zalogowany</div>
-          <div className="text-gray-500">Zaloguj się aby korzystać z chatu</div>
-        </div>
-      </div>
-    );
-  }
+  return isAdmin ? <AdminChatPanel /> : <ChatWithOrganizers />;
+};
 
-  return (
-    <div className="h-screen">
-      {isAdmin ? <AdminChatPanel /> : <ChatWithOrganizers />}
-    </div>
-  );
-}
+export default ChatApp;

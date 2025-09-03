@@ -22,7 +22,6 @@ export const useGroups = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Helper function to get error message based on status
   const getErrorMessage = (status: number): string => {
     switch (status) {
       case 404: return 'Grupa nie została znaleziona';
@@ -31,21 +30,17 @@ export const useGroups = () => {
     }
   };
 
-  // Clear error
   const clearError = useCallback(() => {
     setError(null);
   }, []);
 
-  // Fetch all groups
   const fetchAllGroups = useCallback(async (): Promise<Group[]> => {
     if (!isAuthenticated) {
       setError('Musisz być zalogowany');
       return [];
     }
-
     setLoading(true);
     setError(null);
-    
     try {
       const data = await getAllGroups();
       setGroups(data);
@@ -60,16 +55,13 @@ export const useGroups = () => {
     }
   }, [isAuthenticated]);
 
-  // Get group by ID
   const getGroup = useCallback(async (groupId: number): Promise<Group | null> => {
     if (!isAuthenticated) {
       setError('Musisz być zalogowany');
       return null;
     }
-
     setLoading(true);
     setError(null);
-    
     try {
       const group = await getGroupById(groupId);
       return group;
@@ -83,22 +75,16 @@ export const useGroups = () => {
     }
   }, [isAuthenticated]);
 
-  // Create new group
   const createNewGroup = useCallback(async (groupData: CreateGroupRequest): Promise<Group | null> => {
     if (!isAuthenticated) {
       setError('Musisz być zalogowany');
       return null;
     }
-
     setLoading(true);
     setError(null);
-    
     try {
       const newGroup = await createGroup(groupData);
-      
-      // Optimistic update
       setGroups(prev => [...prev, newGroup]);
-      
       return newGroup;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
@@ -110,24 +96,18 @@ export const useGroups = () => {
     }
   }, [isAuthenticated]);
 
-  // Update group
   const updateExistingGroup = useCallback(async (groupId: number, groupData: UpdateGroupRequest): Promise<Group | null> => {
     if (!isAuthenticated) {
       setError('Musisz być zalogowany');
       return null;
     }
-
     setLoading(true);
     setError(null);
-    
     try {
       const updatedGroup = await updateGroup(groupId, groupData);
-      
-      // Optimistic update
       setGroups(prev => prev.map(group => 
         group.id === groupId ? updatedGroup : group
       ));
-      
       return updatedGroup;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
@@ -139,29 +119,21 @@ export const useGroups = () => {
     }
   }, [isAuthenticated]);
 
-  // Delete group
   const deleteExistingGroup = useCallback(async (groupId: number): Promise<boolean> => {
     if (!isAuthenticated) {
       setError('Musisz być zalogowany');
       return false;
     }
-
     setLoading(true);
     setError(null);
-    
     try {
       await deleteGroup(groupId);
-      
-      // Optimistic update
       setGroups(prev => prev.filter(group => group.id !== groupId));
-      
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
       setError(errorMessage);
       console.error('Error deleting group:', err);
-      
-      // Rollback on error
       fetchAllGroups();
       return false;
     } finally {
@@ -169,22 +141,16 @@ export const useGroups = () => {
     }
   }, [isAuthenticated, fetchAllGroups]);
 
-  // Add participant to group
   const addParticipant = useCallback(async (groupId: number, userId: number): Promise<boolean> => {
     if (!isAuthenticated) {
       setError('Musisz być zalogowany');
       return false;
     }
-
     setLoading(true);
     setError(null);
-    
     try {
       await addParticipantToGroup(groupId, userId);
-      
-      // Refresh groups to get updated participant list
       await fetchAllGroups();
-      
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
@@ -196,22 +162,16 @@ export const useGroups = () => {
     }
   }, [isAuthenticated, fetchAllGroups]);
 
-  // Remove participant from group
   const removeParticipant = useCallback(async (groupId: number, userId: number): Promise<boolean> => {
     if (!isAuthenticated) {
       setError('Musisz być zalogowany');
       return false;
     }
-
     setLoading(true);
     setError(null);
-    
     try {
       await removeParticipantFromGroup(groupId, userId);
-      
-      // Refresh groups to get updated participant list
       await fetchAllGroups();
-      
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
@@ -223,24 +183,19 @@ export const useGroups = () => {
     }
   }, [isAuthenticated, fetchAllGroups]);
 
-  // Search groups with debounced functionality
   const searchGroups = useCallback(async (filters: GroupSearchFilters): Promise<Group[]> => {
     if (!isAuthenticated) {
       setError('Musisz być zalogowany');
       return [];
     }
-
     setLoading(true);
     setError(null);
-    
     try {
       let results: Group[] = [];
 
       if (!filters.searchTerm || filters.searchTerm.trim() === '') {
-        // If no search term, get all groups or apply other filters
         results = await getAllGroups();
       } else {
-        // Search by title or description
         if (filters.searchType === 'description') {
           results = await searchGroupsByDescription(filters.searchTerm);
         } else {
@@ -248,7 +203,6 @@ export const useGroups = () => {
         }
       }
 
-      // Apply additional filters
       if (filters.hasAvailableSpots) {
         results = results.filter(group => {
           if (!group.maxParticipants) return true;
@@ -277,16 +231,13 @@ export const useGroups = () => {
     }
   }, [isAuthenticated]);
 
-  // Get groups with available spots
   const fetchGroupsWithSpots = useCallback(async (): Promise<Group[]> => {
     if (!isAuthenticated) {
       setError('Musisz być zalogowany');
       return [];
     }
-
     setLoading(true);
     setError(null);
-    
     try {
       const data = await getGroupsWithAvailableSpots();
       setGroups(data);
@@ -301,16 +252,13 @@ export const useGroups = () => {
     }
   }, [isAuthenticated]);
 
-  // Get groups created at specific date
   const fetchGroupsCreatedAt = useCallback(async (dateTime: string): Promise<Group[]> => {
     if (!isAuthenticated) {
       setError('Musisz być zalogowany');
       return [];
     }
-
     setLoading(true);
     setError(null);
-    
     try {
       const data = await getGroupsCreatedAt(dateTime);
       setGroups(data);
@@ -325,16 +273,13 @@ export const useGroups = () => {
     }
   }, [isAuthenticated]);
 
-  // Get user's groups
   const fetchMyGroups = useCallback(async (): Promise<Group[]> => {
     if (!isAuthenticated || !user) {
       setError('Musisz być zalogowany');
       return [];
     }
-
     setLoading(true);
     setError(null);
-    
     try {
       const data = await getMyGroups(user.id);
       return data;
@@ -348,7 +293,6 @@ export const useGroups = () => {
     }
   }, [isAuthenticated, user]);
 
-  // Utility functions
   const hasAvailableSpots = useCallback((group: Group): boolean => {
     if (!group.maxParticipants) return true;
     const participantCount = group.participants?.length || 0;
@@ -380,12 +324,9 @@ export const useGroups = () => {
   }, []);
 
   return {
-    // State
     groups,
     loading,
     error,
-    
-    // Actions
     fetchAllGroups,
     getGroup,
     createNewGroup,
@@ -397,8 +338,6 @@ export const useGroups = () => {
     fetchGroupsWithSpots,
     fetchGroupsCreatedAt,
     fetchMyGroups,
-    
-    // Utils
     clearError,
     hasAvailableSpots,
     getAvailableSpots,

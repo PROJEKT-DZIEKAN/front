@@ -1,300 +1,304 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import Image from 'next/image';
-import { CameraIcon, PhotoIcon, CloudArrowUpIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import React, { useRef, useState, useCallback } from 'react';
+import { CameraIcon, PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useFaceRecognition } from '@/hooks/useFaceRecognition';
 
-// Adres URL Twojego API, który będzie używany do rozpoznawania
-const API_URL = 'https://ai-dziekan-production.up.railway.app/camera/';
+interface RecognitionResult {
+  success: boolean;
+  identity?: string;
+  confidence?: number;
+  distance?: number;
+  processing_time_seconds?: number;
+  status: 'recognized' | 'unknown' | 'no_face' | 'error' | 'server_error';
+  message: string;
+  person?: {
+    full_name: string;
+    first_name: string;
+    last_name: string;
+  };
+}
 
-export default function PersonRecognition() {
+const PersonRecognition: React.FC = () => {
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [recognitionResult, setRecognitionResult] = useState<RecognitionResult | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [capturedImage, setCapturedImage] = useState<Blob | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [recognitionResult, setRecognitionResult] = useState({
-    identity: 'Oczekiwanie...',
-    message: 'Naciśnij "Włącz kamerkę" aby rozpocząć lub "Prześlij z galerii".',
-    status: '',
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { recognizeFace, checkHealth, reloadDatabase } = useFaceRecognition();
 
-  // Funkcja do przechwytywania klatki z wideo
-  const captureFrame = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const context = canvas.getContext('2d');
-
-      if (!context) return null;
-      
-      if (video.readyState !== 4 || video.videoWidth === 0) {
-        console.warn('Wideo nie jest jeszcze gotowe do przechwycenia klatki.');
-        return null;
-      }
-
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      return new Promise<Blob | null>((resolve) => {
-        canvas.toBlob((blob) => {
-          resolve(blob);
-        }, 'image/jpeg', 0.9);
-      });
-    }
-    return null;
-  };
-
-  // Funkcja do wysyłania zdjęcia do API
-  const sendImageToAPI = async (imageBlob: Blob | File, filename: string) => {
-    setError(null);
-    setIsLoading(true);
-    setRecognitionResult({
-      identity: 'Wysyłanie...',
-      message: 'Wysyłanie zdjęcia do serwera...',
-      status: 'loading',
-    });
-
+  const startCamera = useCallback(async () => {
     try {
-      const formData = new FormData();
-      formData.append('file', imageBlob, filename);
-
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        body: formData,
+      setError(null);
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480, facingMode: 'user' }
       });
       
-      setRecognitionResult({
-        identity: 'Przetwarzanie...',
-        message: 'Przetwarzanie obrazu na serwerze...',
-        status: 'loading',
-      });
-
-      if (!response.ok) {
-        throw new Error(`Błąd HTTP! Status: ${response.status}`);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        setStream(mediaStream);
+        setIsCapturing(true);
       }
-
-      const data = await response.json();
-      console.log('API Response:', data);
-
-      if (data.success) {
-        setRecognitionResult({
-          identity: data.identity,
-          message: data.message,
-          status: data.status,
-        });
-      } else {
-        setRecognitionResult({
-          identity: data.identity || 'Błąd',
-          message: data.message || 'Nieznany błąd.',
-          status: 'error',
-        });
-      }
-    } catch (err: unknown) {
-      console.error('Błąd połączenia z API:', err);
-      setError('Błąd połączenia z API. Upewnij się, że serwer działa.');
-      setRecognitionResult({
-        identity: 'Błąd',
-        message: 'Nie udało się połączyć z API.',
-        status: 'error',
-      });
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      setError('Nie można uzyskać dostępu do kamery. Sprawdź uprawnienia.');
     }
-  };
+  }, []);
 
-  // Funkcja do włączania/wyłączania kamery
-  const startCamera = async () => {
+  const stopCamera = useCallback(() => {
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
-      setRecognitionResult({
-        identity: 'Oczekiwanie...',
-        message: 'Naciśnij "Włącz kamerkę" aby rozpocząć lub "Prześlij z galerii".',
-        status: '',
-      });
-      return;
     }
+    setIsCapturing(false);
+    setCapturedImage(null);
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, [stream]);
+
+  const capturePhoto = useCallback(() => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    if (!context) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0);
+
+    const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+    setCapturedImage(imageDataUrl);
+  }, []);
+
+  const processImage = useCallback(async (imageSource: string | File) => {
+    setIsProcessing(true);
+    setError(null);
+    setRecognitionResult(null);
 
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: 640, height: 480 }
-      });
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+      let file: File;
+
+      if (typeof imageSource === 'string') {
+        const response = await fetch(imageSource);
+        const blob = await response.blob();
+        file = new File([blob], 'captured-image.jpg', { type: 'image/jpeg' });
+      } else {
+        file = imageSource;
       }
+
+      const result = await recognizeFace(file);
+      setRecognitionResult(result);
     } catch (err) {
-      console.error('Błąd dostępu do kamery:', err);
-      setError('Nie można uzyskać dostępu do kamery. Sprawdź uprawnienia.');
-      setStream(null);
+      setError('Błąd podczas rozpoznawania twarzy');
+    } finally {
+      setIsProcessing(false);
     }
-  };
+  }, [recognizeFace]);
 
-  // Funkcja do obsługi kliknięcia "Zrób zdjęcie"
-  const handleTakePic = async () => {
-    const blob = await captureFrame();
-    if (blob) {
-      setCapturedImage(blob);
-      setShowModal(true);
-    } else {
-      setError('Nie można zrobić zdjęcia. Upewnij się, że kamera działa poprawnie.');
-    }
-  };
-
-  // Funkcja do obsługi przesłania zdjęcia z podglądu
-  const handleSendPic = async () => {
-    if (capturedImage) {
-      setShowModal(false);
-      await sendImageToAPI(capturedImage, 'camera_snapshot.jpg');
-    }
-  };
-
-  // Funkcja do ponownego zrobienia zdjęcia
-  const handleRetakePic = () => {
-    setCapturedImage(null);
-    setShowModal(false);
-    // Pozwalamy kamerze działać, aby można było od razu zrobić nowe zdjęcie
-  };
-
-  // Funkcja do obsługi przesłania z galerii
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      sendImageToAPI(file, file.name);
+      if (file.type.startsWith('image/')) {
+        processImage(file);
+        const reader = new FileReader();
+        reader.onload = (e) => setCapturedImage(e.target?.result as string);
+        reader.readAsDataURL(file);
+      } else {
+        setError('Można przesłać tylko pliki obrazów');
+      }
+    }
+  }, [processImage]);
+
+  const handleHealthCheck = async () => {
+    const health = await checkHealth();
+    if (health) {
+      setError(null);
+      alert(`API Status: ${health.status}\nBaza: ${health.database_loaded ? 'Załadowana' : 'Nie załadowana'}\nRozmiar: ${health.database_size}`);
+    } else {
+      setError('API niedostępne');
     }
   };
 
-  // Kolory statusów
+  const handleReloadDatabase = async () => {
+    try {
+      await reloadDatabase();
+      alert('Baza danych została przeładowana');
+    } catch (err) {
+      setError('Błąd podczas przeładowywania bazy');
+    }
+  };
+
+  const reset = useCallback(() => {
+    setRecognitionResult(null);
+    setCapturedImage(null);
+    setError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, []);
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'recognized':
-        return 'text-green-600';
-      case 'no_face':
-        return 'text-yellow-600';
-      case 'unknown':
-        return 'text-blue-600';
-      case 'error':
-        return 'text-red-600';
-      case 'loading':
-        return 'text-blue-500';
-      default:
-        return 'text-gray-600';
+      case 'recognized': return 'text-green-600 bg-green-50';
+      case 'unknown': return 'text-yellow-600 bg-yellow-50';
+      case 'no_face': return 'text-red-600 bg-red-50';
+      case 'error': return 'text-red-600 bg-red-50';
+      default: return 'text-gray-600 bg-gray-50';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'recognized': return '✅';
+      case 'unknown': return '⚠️';
+      case 'no_face': return '❌';
+      case 'error': return '❌';
+      default: return '🔍';
     }
   };
 
   return (
-    <div className="p-4 bg-gray-100 min-h-screen flex flex-col items-center justify-center space-y-6 font-sans">
-      <h1 className="text-3xl font-bold text-gray-900">Rozpoznawanie Twarzy</h1>
-      
-      <div className="w-full max-w-lg border-2 border-gray-400 rounded-xl shadow-lg overflow-hidden bg-white">
-        <video
-          ref={videoRef}
-          className="w-full h-auto"
-          autoPlay
-          playsInline
-          muted
-          style={{ transform: 'scaleX(-1)' }} // Odwraca obraz, żeby wyglądał jak lustro
-        />
-        {/* Ukryty canvas do przechwytywania klatek */}
-        <canvas ref={canvasRef} style={{ display: 'none' }} />
-      </div>
-
-      <div className="text-center">
-        <p className="text-lg font-semibold text-gray-800">Status:</p>
-        {isLoading ? (
-          <p className="text-blue-500 font-medium">{recognitionResult.message}</p>
-        ) : (
-          <p className={`text-xl font-bold ${getStatusColor(recognitionResult.status)}`}>
-            {recognitionResult.identity}
-          </p>
-        )}
-        {!isLoading && <p className="text-gray-600 mt-2">{recognitionResult.message}</p>}
-        {error && <p className="text-red-500 mt-2">{error}</p>}
-      </div>
-      
-      <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 w-full max-w-lg">
-        <button
-          onClick={startCamera}
-          className="bg-blue-600 text-white py-3 px-8 rounded-full shadow-lg hover:bg-blue-700 transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-2 focus:outline-none focus:ring-4 focus:ring-blue-300 w-full"
-        >
-          <CameraIcon className="h-6 w-6" />
-          <span>{stream ? 'Wyłącz kamerkę' : 'Włącz kamerkę'}</span>
-        </button>
-
-        {stream && (
+    <div className="w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">Rozpoznawanie Twarzy</h2>
+        <div className="flex gap-2 mb-4">
           <button
-            onClick={handleTakePic}
-            className="bg-green-600 text-white py-3 px-8 rounded-full shadow-lg hover:bg-green-700 transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-2 focus:outline-none focus:ring-4 focus:ring-green-300 w-full"
-            disabled={isLoading}
+            onClick={handleHealthCheck}
+            className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
           >
-            <PhotoIcon className="h-6 w-6" />
-            <span>Zrób zdjęcie</span>
+            Status API
           </button>
-        )}
-
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="bg-gray-600 text-white py-3 px-8 rounded-full shadow-lg hover:bg-gray-700 transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-2 focus:outline-none focus:ring-4 focus:ring-gray-300 w-full"
-          disabled={isLoading}
-        >
-          <CloudArrowUpIcon className="h-6 w-6" />
-          <span>Prześlij z galerii</span>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            className="hidden"
-            accept="image/*"
-          />
-        </button>
+          <button
+            onClick={handleReloadDatabase}
+            className="px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
+          >
+            Przeładuj Bazę
+          </button>
+        </div>
       </div>
 
-      {/* Popup z podglądem zdjęcia */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg flex flex-col items-center space-y-4 relative">
-            <button
-              onClick={() => handleRetakePic()}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition-colors"
-            >
-              <XMarkIcon className="h-6 w-6" />
-            </button>
-            <h2 className="text-2xl font-bold text-gray-900">Podgląd zdjęcia</h2>
-            {capturedImage && (
-              <Image
-                src={URL.createObjectURL(capturedImage)}
-                alt="Podgląd zrobionego zdjęcia"
-                width={400}
-                height={300}
-                className="rounded-lg border-2 border-gray-300 w-full h-auto"
-                style={{ transform: 'scaleX(-1)' }}
-              />
-            )}
-            <div className="flex space-x-4 w-full justify-center">
-              <button
-                onClick={handleRetakePic}
-                className="bg-red-500 text-white py-3 px-8 rounded-full shadow-lg hover:bg-red-600 transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-2 focus:outline-none focus:ring-4 focus:ring-red-300"
-              >
-                <CameraIcon className="h-6 w-6" />
-                <span>Ponów zdjęcie</span>
-              </button>
-              <button
-                onClick={handleSendPic}
-                className="bg-green-600 text-white py-3 px-8 rounded-full shadow-lg hover:bg-green-700 transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-2 focus:outline-none focus:ring-4 focus:ring-green-300"
-              >
-                <CloudArrowUpIcon className="h-6 w-6" />
-                <span>Prześlij</span>
-              </button>
-            </div>
-          </div>
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-700">{error}</p>
         </div>
       )}
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div className="flex gap-3">
+            {!isCapturing ? (
+              <button
+                onClick={startCamera}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <CameraIcon className="w-5 h-5" />
+                Włącz kamerę
+              </button>
+            ) : (
+              <button
+                onClick={stopCamera}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                <XMarkIcon className="w-5 h-5" />
+                Wyłącz kamerę
+              </button>
+            )}
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              <PhotoIcon className="w-5 h-5" />
+              Wybierz plik
+            </button>
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+
+          {isCapturing && (
+            <div className="relative">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className="w-full rounded-lg border"
+              />
+              <button
+                onClick={capturePhoto}
+                className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white text-blue-600 px-4 py-2 rounded-lg shadow-lg hover:bg-gray-50"
+              >
+                Zrób zdjęcie
+              </button>
+            </div>
+          )}
+
+          {capturedImage && (
+            <div className="space-y-3">
+              <img
+                src={capturedImage}
+                alt="Captured"
+                className="w-full rounded-lg border"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => processImage(capturedImage)}
+                  disabled={isProcessing}
+                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isProcessing ? 'Rozpoznaję...' : 'Rozpoznaj twarz'}
+                </button>
+                <button
+                  onClick={reset}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div>
+          {recognitionResult && (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-lg font-semibold mb-3">Wynik rozpoznawania:</h3>
+              
+              <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium mb-3 ${getStatusColor(recognitionResult.status)}`}>
+                <span>{getStatusIcon(recognitionResult.status)}</span>
+                <span>{recognitionResult.message}</span>
+              </div>
+
+              {recognitionResult.success && recognitionResult.person && (
+                <div className="space-y-2">
+                  <p><strong>Imię:</strong> {recognitionResult.person.first_name}</p>
+                  <p><strong>Nazwisko:</strong> {recognitionResult.person.last_name}</p>
+                  <p><strong>Pewność:</strong> {recognitionResult.confidence?.toFixed(1)}%</p>
+                  <p><strong>Czas przetwarzania:</strong> {recognitionResult.processing_time_seconds?.toFixed(2)}s</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
-}
+};
+
+export default PersonRecognition;
