@@ -31,7 +31,7 @@ export default function AdminEventForm({
         {editingEvent ? 'Edytuj Event' : 'Dodaj Nowy Event'}
       </h2>
       
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} className="space-y-4 ">
         <Input
           label="Tytuł"
           name="title"

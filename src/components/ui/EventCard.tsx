@@ -125,12 +125,15 @@ export default function EventCard({
           {event.maxParticipants && event.currentParticipants !== undefined && (
             <div className="flex items-center text-sm text-gray-600">
               <UserGroupIcon className="h-4 w-4 mr-2" />
-              <span>{event.currentParticipants}/{event.maxParticipants} uczestników</span>
-              {event.maxParticipants - event.currentParticipants <= 5 && (
+              <span>
+              {event.currentParticipants}/{event.maxParticipants} uczestników
+            </span>
+            {event.currentParticipants > 0 &&
+              event.maxParticipants - event.currentParticipants <= 5 && (
                 <StatusBadge status="warning" size="sm" className="ml-2">
                   Mało miejsc!
                 </StatusBadge>
-              )}
+            )}
             </div>
           )}
         </div>

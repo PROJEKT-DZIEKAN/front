@@ -1,7 +1,7 @@
 import { User, AuthTokens } from '@/types/auth';
 
-const API_BASE_URL = 'https://dziekan-48de5f4dea14.herokuapp.com';
-
+//const API_BASE_URL = 'https://dziekan-48de5f4dea14.herokuapp.com';
+const API_BASE_URL = 'http://localhost:8080';
 // Funkcja do dekodowania JWT tokenu (bez weryfikacji - tylko odczyt)
 export const decodeJWT = (token: string) => {
   try {
@@ -32,7 +32,8 @@ export const extractUserFromToken = (accessToken: string): User | null => {
     firstName: tokenData.firstName,
     surname: tokenData.surname,
     registrationStatus: tokenData.status,
-    roles: roles
+    roles: roles,
+      university: tokenData.university,
   };
 };
 
@@ -74,5 +75,8 @@ export const getAuthHeaders = () => {
     'Content-Type': 'application/json'
   };
 };
+
+
+
 
 export { API_BASE_URL };

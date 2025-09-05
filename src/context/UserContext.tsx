@@ -4,9 +4,6 @@ import { ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { useEvents } from './EventContext';
 
-
-
-
 // Re-exportujemy eventBus dla kompatybilności
 export { eventBus } from '@/utils/eventBus';
 

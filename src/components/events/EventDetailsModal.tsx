@@ -30,21 +30,21 @@ export default function EventDetailsModal({
       size="md"
     >
       <div className="space-y-4">
-        <p className="text-gray-700">{event.description}</p>
+        <p className="text-black">{event.description}</p>
         
         <div className="space-y-2">
-          <div className="flex items-center text-sm">
-            <ClockIcon className="h-4 w-4 mr-2 text-gray-500" />
+          <div className="flex items-center text-sm text-black">
+            <ClockIcon className="h-4 w-4 mr-2 text-black" />
             <span>
               {format(parseISO(event.startTime), 'PPp', { locale: pl })}
             </span>
           </div>
-          <div className="flex items-center text-sm">
-            <MapPinIcon className="h-4 w-4 mr-2 text-gray-500" />
+          <div className="flex items-center text-sm text-black">
+            <MapPinIcon className="h-4 w-4 mr-2 text-black" />
             <span>{event.location}</span>
           </div>
-          <div className="flex items-center text-sm">
-            <UserGroupIcon className="h-4 w-4 mr-2 text-gray-500" />
+          <div className="flex items-center text-sm text-black">
+            <UserGroupIcon className="h-4 w-4 mr-2 text-black" />
             <span>{event.organizer?.firstName} {event.organizer?.surname}</span>
           </div>
         </div>

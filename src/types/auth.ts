@@ -4,6 +4,7 @@ export interface Role {
 }
 
 export interface User {
+    university: string;
   id: number;
   firstName: string;
   surname: string;

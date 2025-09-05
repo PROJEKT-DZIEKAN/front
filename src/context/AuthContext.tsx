@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, AuthContextType } from '@/types/auth';
 import { extractUserFromToken } from '@/utils/authUtils';
+import { API_BASE_URL } from '@/utils/authUtils';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -31,7 +32,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log(`🔐 Logowanie użytkownika ID: ${userId}`);
       
       // Wywołaj prawdziwy endpoint logowania
-      const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/auth/login-by-user-id/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login-by-user-id/${userId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -110,7 +111,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const refreshToken = localStorage.getItem('refreshToken');
       if (!refreshToken) return false;
 
-      const response = await fetch('https://dziekan-48de5f4dea14.herokuapp.com/api/refresh-token', {
+      const response = await fetch(`${API_BASE_URL}/api/refresh-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken })

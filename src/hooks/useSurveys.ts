@@ -2,18 +2,18 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Survey, CreateSurveyRequest, UpdateSurveyRequest, SurveyAnswer } from '@/types/survey';
-import { 
-  getAllSurveys, 
-  getSurvey, 
-  createSurvey, 
-  updateSurvey, 
-  deleteSurvey, 
-  submitSurveyAnswers 
+import {
+    getSurvey,
+    createSurvey,
+    updateSurvey,
+    deleteSurvey,
+    submitSurveyAnswers, getAllAvailableSurveys, getAllSurveys
 } from '@/utils/apiClient';
 import { useAuth } from './useAuth';
 
 export const useSurveys = () => {
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [AllSurveys, setAllSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user, isAuthenticated } = useAuth();
@@ -25,7 +25,9 @@ export const useSurveys = () => {
     setLoading(true);
     setError(null);
     try {
-      const surveysData = await getAllSurveys();
+      const surveysData = await getAllAvailableSurveys(user?.id);
+      console.log('user id: ',user?.id);
+      console.log('surveysData:',surveysData);
       
       // Sprawdzenie czy surveysData jest tablicą
       if (!Array.isArray(surveysData)) {
@@ -36,6 +38,32 @@ export const useSurveys = () => {
       }
       
       setSurveys(surveysData);
+    } catch (err) {
+      console.error('Błąd pobierania ankiet:', err);
+      setError('Nie udało się pobrać ankiet');
+      setSurveys([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  const fetchAllSurveys = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const surveysData = await getAllSurveys();
+
+      // Sprawdzenie czy surveysData jest tablicą
+      if (!Array.isArray(surveysData)) {
+        console.error('❌ API zwróciło nieprawidłowe dane ankiet:', surveysData);
+        setError('API zwróciło nieprawidłowe dane - oczekiwano tablicy ankiet');
+        setAllSurveys([]);
+        return;
+      }
+
+      setAllSurveys(surveysData);
     } catch (err) {
       console.error('Błąd pobierania ankiet:', err);
       setError('Nie udało się pobrać ankiet');
@@ -138,17 +166,20 @@ export const useSurveys = () => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchSurveys();
+        fetchAllSurveys();
     } else {
       setSurveys([]);
       setError(null);
     }
-  }, [isAuthenticated, fetchSurveys]);
+  }, [isAuthenticated, fetchSurveys, fetchAllSurveys]);
 
   return {
+      AllSurveys,
     surveys,
     loading,
     error,
     fetchSurveys,
+    fetchAllSurveys,
     fetchSurvey,
     createNewSurvey,
     updateExistingSurvey,

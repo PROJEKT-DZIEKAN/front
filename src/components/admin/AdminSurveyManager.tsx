@@ -25,7 +25,7 @@ interface QuestionFormData {
 }
 
 export default function AdminSurveyManager() {
-  const { surveys, loading, error, createNewSurvey, updateExistingSurvey, removeSurvey } = useSurveys();
+  const { AllSurveys, loading, error, createNewSurvey, updateExistingSurvey, removeSurvey } = useSurveys();
   const { isAdmin, isAuthenticated } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingSurvey, setEditingSurvey] = useState<Survey | null>(null);
@@ -203,14 +203,14 @@ export default function AdminSurveyManager() {
         <div className="flex justify-center py-8">
           <LoadingSpinner />
         </div>
-      ) : surveys.length === 0 ? (
+      ) : AllSurveys.length === 0 ? (
         <div className="text-center py-12">
           <ChartBarIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-600">Brak ankiet w systemie</p>
         </div>
       ) : (
         <div className="grid gap-4">
-          {surveys.map((survey) => (
+          {AllSurveys.map((survey) => (
             <div key={survey.id} className="bg-white border border-gray-200 rounded-lg p-6">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
@@ -305,7 +305,7 @@ export default function AdminSurveyManager() {
                     </Button>
                   </div>
                   
-                  <div className="mb-3">
+                  <div className="mb-3 text-black">
                     <Select
                       value={question.type}
                       onChange={(e) => updateQuestion(qIndex, 'type', e.target.value as 'SINGLE' | 'MULTIPLE')}

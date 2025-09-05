@@ -1,59 +1,164 @@
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { API_BASE_URL, getAuthHeaders } from './authUtils';
 import { Survey, CreateSurveyRequest, UpdateSurveyRequest, SurveyAnswer } from '@/types/survey';
 import { Group, CreateGroupRequest, UpdateGroupRequest } from '@/types/group';
 import { User } from '@/types/auth';
 
-// Interface dla błędu axios
-export interface AxiosErrorResponse {
-  response?: {
-    status?: number;
-    data?: unknown;
-  };
+interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
+ _retry?: boolean;
 }
 
-// Funkcja do obsługi błędów axios
-export const handleAxiosError = (error: unknown, context: string) => {
-  console.error(`❌ Błąd ${context}:`, error);
-  
-  if (error && typeof error === 'object' && 'response' in error) {
-    const axiosError = error as AxiosErrorResponse;
-    const status = axiosError.response?.status;
-    const data = axiosError.response?.data;
-    
-    console.error('Status:', status, 'Data:', data);
-    
-    if (status === 403) {
-      alert('❌ Błąd 403: Brak uprawnień. Sprawdź czy jesteś zalogowany jako admin.');
-    } else if (status === 400) {
-      alert(`❌ Błąd 400: Nieprawidłowe dane. ${JSON.stringify(data)}`);
-    } else if (status === 401) {
-      alert('❌ Błąd 401: Nieautoryzowany dostęp. Zaloguj się ponownie.');
-    } else {
-      alert(`❌ Błąd ${status}: ${JSON.stringify(data)}`);
-    }
-  } else {
-    alert(`❌ Błąd połączenia z serwerem podczas ${context}`);
-  }
+export interface AxiosErrorResponse extends AxiosError {
+ config: CustomAxiosRequestConfig;
+}
+
+interface QueueItem {
+ resolve: (token: string) => void;
+ reject: (error: AxiosError) => void;
+}
+
+interface TokenResponse {
+ accessToken: string;
+ refreshToken: string;
+}
+
+let isRefreshing = false;
+let failedQueue: QueueItem[] = [];
+
+const processQueue = (error: AxiosError | null, token: string | null = null) => {
+ failedQueue.forEach(prom => {
+   if (error) {
+     prom.reject(error);
+   } else if (token) {
+     prom.resolve(token);
+   }
+ });
+
+ failedQueue = [];
 };
 
-// Konfiguracja axios
+const refreshTokens = async (): Promise<string | null> => {
+ try {
+   const refreshToken = localStorage.getItem('refreshToken');
+   if (!refreshToken) {
+     throw new Error('No refresh token');
+   }
+
+   const response = await axios.post<TokenResponse>(`${API_BASE_URL}/api/auth/refresh`, {
+     refreshToken
+   });
+
+   const { accessToken, refreshToken: newRefreshToken } = response.data;
+
+   localStorage.setItem('accessToken', accessToken);
+   localStorage.setItem('refreshToken', newRefreshToken);
+
+   return accessToken;
+     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+ } catch (error) {
+   localStorage.removeItem('accessToken');
+   localStorage.removeItem('refreshToken');
+   window.location.href = '/login';
+   return null;
+ }
+};
+
+export const handleAxiosError = (error: unknown, context: string) => {
+ console.error(`Error during ${context}:`, error);
+
+ if (axios.isAxiosError(error)) {
+   const status = error.response?.status;
+   const data = error.response?.data;
+
+   console.error('Status:', status, 'Data:', data);
+
+   if (status === 403 || status === 401) {
+     return;
+   } else if (status === 400) {
+     alert(`Error 400: Invalid data. ${JSON.stringify(data)}`);
+   } else {
+     alert(`Error ${status}: ${JSON.stringify(data)}`);
+   }
+ } else {
+   alert(`Server connection error during ${context}`);
+ }
+};
+
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
+ baseURL: API_BASE_URL,
+ timeout: 10000,
 });
 
-// Interceptor dla błędów
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      // Token wygasł - można dodać automatyczne odświeżanie
-      console.log('Token wygasł, wymagane ponowne logowanie');
-    }
-    return Promise.reject(error);
-  }
+apiClient.interceptors.request.use(
+ (config) => {
+   const token = localStorage.getItem('accessToken');
+   if (token) {
+     config.headers.Authorization = `Bearer ${token}`;
+   }
+   return config;
+ },
+ (error) => Promise.reject(error)
 );
+
+apiClient.interceptors.response.use(
+ (response) => response,
+ async (error: AxiosError) => {
+   const originalRequest = error.config as CustomAxiosRequestConfig;
+
+   if (!originalRequest) {
+     return Promise.reject(error);
+   }
+
+   if ((error.response?.status === 401 || error.response?.status === 403)
+       && !originalRequest._retry) {
+
+     if (isRefreshing) {
+       return new Promise<string>((resolve, reject) => {
+         failedQueue.push({ resolve, reject });
+       }).then(token => {
+         originalRequest.headers.Authorization = `Bearer ${token}`;
+         return apiClient(originalRequest);
+       }).catch(err => {
+         return Promise.reject(err);
+       });
+     }
+
+     originalRequest._retry = true;
+     isRefreshing = true;
+
+     try {
+       const newToken = await refreshTokens();
+
+       if (newToken) {
+         processQueue(null, newToken);
+         originalRequest.headers.Authorization = `Bearer ${newToken}`;
+         return apiClient(originalRequest);
+       } else {
+         processQueue(error, null);
+         return Promise.reject(error);
+       }
+     } catch (refreshError) {
+       const axiosError = refreshError as AxiosError;
+       processQueue(axiosError, null);
+       return Promise.reject(refreshError);
+     } finally {
+       isRefreshing = false;
+     }
+   }
+
+   return Promise.reject(error);
+ }
+);
+
+export const isAuthenticated = (): boolean => {
+ return !!localStorage.getItem('accessToken');
+};
+
+export const logout = () => {
+ localStorage.removeItem('accessToken');
+ localStorage.removeItem('refreshToken');
+ window.location.href = '';
+};
 
 // === SURVEY API FUNCTIONS ===
 
@@ -63,9 +168,8 @@ export const getAllSurveys = async (): Promise<Survey[]> => {
     const headers = getAuthHeaders();
     if (!headers) throw new Error('Brak autoryzacji');
 
-    const response = await apiClient.get('/api/surveys', { headers });
-    
-    // Sprawdzenie czy response.data jest tablicą
+    const response = await apiClient.get('/api/surveys/all', { headers });
+
     if (!Array.isArray(response.data)) {
       console.error('❌ API zwróciło nieprawidłowe dane ankiet:', response.data);
       throw new Error('API zwróciło nieprawidłowe dane - oczekiwano tablicy ankiet');
@@ -77,6 +181,31 @@ export const getAllSurveys = async (): Promise<Survey[]> => {
     throw error;
   }
 };
+
+export const getAllAvailableSurveys = async (userId?: number): Promise<Survey[]> => {
+  try {
+    const headers = getAuthHeaders();
+    if (!headers) throw new Error('Brak autoryzacji');
+
+    // Buduj URL z opcjonalnym parametrem userId
+    const url =`/api/surveys/available?userId=${userId}`
+
+    const response = await apiClient.get(url, { headers });
+
+    if (!Array.isArray(response.data)) {
+      console.error('❌ API zwróciło nieprawidłowe dane ankiet:', response.data);
+      throw new Error('API zwróciło nieprawidłowe dane - oczekiwano tablicy ankiet');
+    }
+    console.log('response', response);
+    console.log('surveysData', response.data);
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, 'pobierania ankiet');
+    throw error;
+  }
+}
+
+
 
 // Funkcja do pobierania pojedynczej ankiety
 export const getSurvey = async (surveyId: number): Promise<Survey> => {

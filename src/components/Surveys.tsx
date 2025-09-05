@@ -91,7 +91,7 @@ export default function Surveys() {
       <div className="p-4 space-y-6">
         <div className="text-center">
           <LoadingSpinner />
-          <p className="text-gray-600 mt-4">Ładowanie ankiet...</p>
+          <p className="text-black mt-4">Ładowanie ankiet...</p>
         </div>
       </div>
     );
@@ -102,7 +102,7 @@ export default function Surveys() {
       <div className="text-center">
         <ChartBarIcon className="h-12 w-12 text-blue-500 mx-auto mb-4" />
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Ankiety i Głosowania</h1>
-        <p className="text-gray-600">Wypełnij ankiety organizatorów</p>
+        <p className="text-black">Wypełnij ankiety organizatorów</p>
       </div>
 
       {error && (
@@ -162,13 +162,13 @@ export default function Surveys() {
                     <h4 className="font-medium text-gray-900">
                       {questionIndex + 1}. {question.text}
                     </h4>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-black">
                       {question.type === 'SINGLE' ? 'Wybierz jedną odpowiedź' : 'Możesz wybrać kilka odpowiedzi'}
                     </p>
                     
                     <div className="space-y-2">
                       {question.surveyOptions.map((option) => (
-                        <label key={option.id} className="flex items-center space-x-3 cursor-pointer">
+                        <label key={option.id} className="flex items-center space-x-3 cursor-pointer text-black">
                           <input
                             type={question.type === 'SINGLE' ? 'radio' : 'checkbox'}
                             name={`question-${question.id}`}

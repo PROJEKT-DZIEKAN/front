@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { UserIcon, QrCodeIcon, ShareIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { API_BASE_URL } from '@/utils/authUtils';
 import { useUser } from '@/context/UserContext';
 import Image from 'next/image';
+
 
 export default function DigitalCard() {
   const { user, isAuthenticated, isLoading } = useUser();
@@ -16,7 +18,7 @@ export default function DigitalCard() {
     
     setIsLoadingQR(true);
     try {
-      const response = await fetch(`https://dziekan-48de5f4dea14.herokuapp.com/api/qr/${user.id}`);
+      const response = await fetch(`${API_BASE_URL}/api/qr/${user.id}`);
       if (response.ok) {
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
@@ -113,13 +115,13 @@ export default function DigitalCard() {
             <h2 className="text-xl font-semibold text-gray-900">
               {user.firstName} {user.surname}
             </h2>
-            <p className="text-gray-600">Student</p>
-            <p className="text-sm text-gray-500">ID: {user.id}</p>
-            {user.registrationStatus && (
-              <p className="text-sm text-green-600 mt-1">
-                Status: {user.registrationStatus}
-              </p>
-            )}
+            {/*<p className="text-gray-600">Student</p>*/}
+            <p className="text-sm text-gray-500">{user?.university}</p>
+            {/*{user.registrationStatus && (*/}
+            {/*  <p className="text-sm text-green-600 mt-1">*/}
+            {/*    Status: {user.registrationStatus}*/}
+            {/*  </p>*/}
+            {/*)}*/}
           </div>
         </div>
       </div>
